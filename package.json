@@ -1,0 +1,33 @@
+{
+  "name": "senegal-connect",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/ndeyecoumba2605-stack/Senegal-Connect#readme",
+  "bugs": {
+    "url": "https://github.com/ndeyecoumba2605-stack/Senegal-Connect/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ndeyecoumba2605-stack/Senegal-Connect.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

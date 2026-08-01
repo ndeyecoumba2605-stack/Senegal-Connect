@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sénégal Connect — Support Client</title>
+<style>
+  :root {
+    --vert: #00853f;
+    --vert-fonce: #006b32;
+    --jaune: #fdcc0d;
+    --rouge: #e31b23;
+    --fond: #f0f2f5;
+    --texte: #1a2332;
+    --bordure: #e0e4e8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--fond); color: var(--texte); }
+  .cache { display: none !important; }
+
+  /* ══════════════════ ÉCRAN DE CONNEXION ══════════════════ */
+  #ecran-connexion {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+  }
+
+  /* ── Panneau visuel gauche : dégradé Sahel + baobab SVG ── */
+  .panneau-visuel {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, #ff9d3d 0%, #ff7a3d 30%, #e8542e 55%, #7a2e3e 80%, #2b1b3d 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 60px;
+    color: white;
+  }
+  .panneau-visuel::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 25% 25%, rgba(253,204,13,0.35), transparent 45%);
+  }
+  .soleil {
+    position: absolute; top: 14%; left: 20%;
+    width: 130px; height: 130px; border-radius: 50%;
+    background: radial-gradient(circle, #fff3c4, var(--jaune) 65%, transparent 75%);
+    box-shadow: 0 0 80px 20px rgba(253,204,13,0.5);
+  }
+  .silhouette-baobabs {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 45%;
+  }
+  .bande-drapeau {
+    position: absolute; top: 0; left: 0; right: 0; height: 6px;
+    display: flex;
+  }
+  .bande-drapeau span { flex: 1; }
+  .bande-drapeau span:nth-child(1) { background: var(--vert); }
+  .bande-drapeau span:nth-child(2) { background: var(--jaune); }
+  .bande-drapeau span:nth-child(3) { background: var(--rouge); }
+
+  .contenu-visuel { position: relative; z-index: 2; }
+  .contenu-visuel .titre-marque { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; }
+  .contenu-visuel .titre-marque span { color: var(--jaune); }
+  .contenu-visuel .accroche { font-size: 16px; margin-top: 12px; max-width: 420px; opacity: 0.95; line-height: 1.5; }
+  .liste-atouts { margin-top: 28px; display: flex; flex-direction: column; gap: 10px; }
+  .liste-atouts div { display: flex; align-items: center; gap: 10px; font-size: 14px; opacity: 0.92; }
+  .liste-atouts .puce { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 12px; }
+
+  /* ── Panneau formulaire droite ── */
+  .panneau-formulaire {
+    display: flex; align-items: center; justify-content: center; padding: 40px;
+    background: white;
+  }
+  .carte-connexion { width: 100%; max-width: 380px; }
+  .carte-connexion h1 { font-size: 24px; margin-bottom: 4px; }
+  .carte-connexion p.sous-titre { color: #777; font-size: 13px; margin-bottom: 28px; }
+  .champ { margin-bottom: 16px; }
+  .champ label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .champ input {
+    width: 100%; padding: 11px 14px; border: 1px solid var(--bordure); border-radius: 8px; font-size: 14px;
+    transition: border-color 0.15s;
+  }
+  .champ input:focus { outline: none; border-color: var(--vert); box-shadow: 0 0 0 3px rgba(0,133,63,0.1); }
+  .bouton {
+    width: 100%; padding: 12px; background: var(--vert); color: white; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s;
+  }
+  .bouton:hover { background: var(--vert-fonce); }
+  .message-erreur { color: #d32f2f; font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .lien-secondaire { text-align: center; margin-top: 16px; font-size: 13px; }
+  .lien-secondaire a { color: var(--vert-fonce); text-decoration: none; font-weight: 600; }
+  .separateur-liens { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; }
+  .separateur-liens a { color: #888; text-decoration: none; }
+  .separateur-liens a:hover { color: var(--vert-fonce); }
+
+  @media (max-width: 860px) {
+    #ecran-connexion { grid-template-columns: 1fr; }
+    .panneau-visuel { display: none; }
+  }
+
+  /* ══════════════════ APP CHAT (inchangée) ══════════════════ */
+  #ecran-app { display: flex; height: 100vh; }
+  #colonne-tickets { width: 250px; background: #1a2332; color: white; overflow-y: auto; padding: 10px; }
+  #colonne-tickets h2 { padding: 10px; font-size: 16px; font-weight: 600; }
+  #colonne-tickets li { padding: 10px; cursor: pointer; border-bottom: 1px solid #2a3548; list-style: none; font-size: 13px; }
+  #colonne-tickets li:hover { background: #2a3548; }
+
+  #colonne-chat { flex: 1; display: flex; flex-direction: column; }
+  #entete-chat { padding: 15px; background: white; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+  #entete-chat button { background: var(--vert); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; margin-left: 8px; }
+  #zone-messages { flex: 1; overflow-y: auto; padding: 15px; background: var(--fond); }
+  .message { margin: 8px 0; padding: 8px 12px; background: white; border-radius: 8px; max-width: 60%; }
+  .message .miniature { max-width: 200px; border-radius: 6px; }
+  .accuse { font-size: 11px; color: #999; margin-left: 6px; }
+  #indicateur-frappe { padding: 4px 15px; font-size: 12px; color: #888; }
+
+  #zone-saisie { display: flex; padding: 10px; background: white; border-top: 1px solid #ddd; gap: 8px; }
+  #champ-message { flex: 1; padding: 10px; border: 1px solid var(--bordure); border-radius: 8px; }
+  #zone-saisie button { background: none; border: none; font-size: 18px; cursor: pointer; }
+  #bouton-envoyer { background: var(--vert); color: white; padding: 0 18px; border-radius: 8px; font-size: 14px; }
+
+  #modale-appel { position: fixed; inset: 0; background: #000; z-index: 100; }
+  #video-distante { width: 100%; height: 100%; object-fit: cover; }
+  #video-locale { position: absolute; bottom: 90px; right: 20px; width: 160px; border-radius: 8px; }
+  #controles-appel { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; }
+  #controles-appel button { width: 50px; height: 50px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; }
+  #chronometre-appel { position: absolute; top: 20px; left: 20px; color: white; font-size: 18px; }
+
+  #sonnerie-appel { position: fixed; top: 40%; left: 50%; transform: translate(-50%,-50%); background: white; padding: 30px; border-radius: 10px; text-align: center; z-index: 200; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ ÉCRAN DE CONNEXION ═══════════════ -->
+<div id="ecran-connexion">
+
+  <div class="panneau-visuel">
+    <div class="bande-drapeau"><span></span><span></span><span></span></div>
+    <div class="soleil"></div>
+
+    <!-- Silhouette de baobabs — SVG libre de droits, dessiné pour ce projet -->
+    <svg class="silhouette-baobabs" viewBox="0 0 800 260" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,260 L0,180 Q40,175 55,150 Q60,130 50,120 Q65,115 70,95 Q75,80 65,70 Q80,68 82,50 Q84,35 72,28 Q78,15 68,8 Q60,3 52,10 Q48,-2 35,2 Q28,6 30,18 Q18,15 15,30 Q12,45 22,52 Q10,58 12,75 Q14,90 28,92 Q20,105 30,118 Q22,135 40,145 Q30,160 45,180 L45,260 Z" fill="#1a0f1f" opacity="0.9"/>
+      <path d="M120,260 L120,200 Q150,195 160,175 L162,260 Z" fill="#1a0f1f" opacity="0.85"/>
+      <path d="M600,260 L600,190 Q635,185 648,160 Q652,145 642,135 Q656,132 660,115 Q663,102 653,95 Q666,93 667,78 Q668,65 657,60 Q662,50 653,44 Q646,40 639,46 Q636,35 625,38 Q619,41 621,51 Q611,49 608,61 Q606,73 615,79 Q605,84 607,98 Q609,111 621,113 Q614,124 622,135 Q615,149 631,157 Q622,170 636,187 L636,260 Z" fill="#1a0f1f" opacity="0.9"/>
+      <path d="M700,260 L700,210 Q725,206 733,190 L735,260 Z" fill="#1a0f1f" opacity="0.85"/>
+      <rect x="0" y="245" width="800" height="15" fill="#1a0f1f"/>
+    </svg>
+
+    <div class="contenu-visuel">
+      <div class="titre-marque">Sénégal <span>Connect</span></div>
+      <p class="accroche">La plateforme numérique de votre opérateur — gérez votre ligne, vos factures et échangez en direct avec le support, où que vous soyez au Sénégal.</p>
+      <div class="liste-atouts">
+        <div><span class="puce">✓</span> Gestion de votre forfait et de vos factures</div>
+        <div><span class="puce">✓</span> Support client en temps réel, chat et visio</div>
+        <div><span class="puce">✓</span> Vos données protégées et sécurisées</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panneau-formulaire">
+    <div class="carte-connexion">
+      <h1>Bienvenue</h1>
+      <p class="sous-titre">Connectez-vous à votre espace Sénégal Connect</p>
+
+      <div class="champ">
+        <label>Email</label>
+        <input id="champ-email" type="email" placeholder="vous@exemple.sn">
+      </div>
+      <div class="champ">
+        <label>Mot de passe</label>
+        <input id="champ-mdp" type="password" placeholder="••••••••">
+      </div>
+      <button id="bouton-connexion" class="bouton">Se connecter</button>
+      <p id="erreur-connexion" class="message-erreur"></p>
+
+      <div class="separateur-liens">
+        <a href="/mot-de-passe-oublie.html">Mot de passe oublié ?</a>
+        <a href="/inscription.html">Créer un compte →</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ APP CHAT (fonctionnalité inchangée) ═══════════════ -->
+<div id="ecran-app" class="cache">
+  <aside id="colonne-tickets">
+    <h2>Tickets</h2>
+    <ul id="liste-tickets"></ul>
+  </aside>
+
+  <main id="colonne-chat">
+    <div id="entete-chat">
+      <span id="titre-ticket">Sélectionnez un ticket</span>
+      <div>
+        <button id="bouton-appel-audio">🎧 Audio</button>
+        <button id="bouton-appel-video">🎥 Vidéo</button>
+      </div>
+    </div>
+
+    <div id="zone-messages"></div>
+    <p id="indicateur-frappe" class="cache"></p>
+
+    <div id="zone-saisie">
+      <button id="bouton-emoji">😀</button>
+      <input id="champ-message" type="text" placeholder="Écrire un message...">
+      <input id="champ-fichier" type="file" class="cache">
+      <button id="bouton-fichier">📎</button>
+      <button id="bouton-envoyer">Envoyer</button>
+    </div>
+  </main>
+
+  <div id="modale-appel" class="cache">
+    <video id="video-distante" autoplay></video>
+    <video id="video-locale" autoplay muted></video>
+    <div id="chronometre-appel">00:00</div>
+    <div id="controles-appel">
+      <button id="bouton-micro">🔇</button>
+      <button id="bouton-camera">📷</button>
+      <button id="bouton-partage-ecran">🖥️</button>
+      <button id="bouton-raccrocher">📴</button>
+    </div>
+  </div>
+
+  <div id="sonnerie-appel" class="cache">
+    <p id="texte-appel-entrant"></p>
+    <button id="bouton-accepter-appel">Accepter</button>
+    <button id="bouton-refuser-appel">Refuser</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/webrtc.js"></script>
+</body>
+</html>

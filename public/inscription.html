@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sénégal Connect — Créer un compte</title>
+<style>
+  :root { --vert: #00853f; --vert-fonce: #006b32; --fond: #f0f2f5; --bordure: #e0e4e8; }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--vert-fonce), var(--vert)); padding: 20px; }
+  .carte { background: white; padding: 36px; border-radius: 12px; width: 100%; max-width: 420px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+  .carte h1 { font-size: 22px; margin-bottom: 4px; }
+  .carte p.sous-titre { color: #777; font-size: 13px; margin-bottom: 22px; }
+  .champ { margin-bottom: 14px; }
+  .champ label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .champ input, .champ select { width: 100%; padding: 10px 12px; border: 1px solid var(--bordure); border-radius: 8px; font-size: 14px; }
+  .champ input:focus, .champ select:focus { outline: none; border-color: var(--vert); }
+  .bouton { width: 100%; padding: 11px; background: var(--vert); color: white; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 6px; }
+  .bouton:hover { background: var(--vert-fonce); }
+  .message-erreur { color: #d32f2f; font-size: 13px; margin-top: 10px; }
+  .message-succes { color: var(--vert); font-size: 13px; margin-top: 10px; }
+  .lien-bas { text-align: center; margin-top: 18px; font-size: 13px; }
+  .lien-bas a { color: var(--vert-fonce); text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="carte">
+  <h1>Créer un compte</h1>
+  <p class="sous-titre">Rejoignez Sénégal Connect</p>
+
+  <form id="formulaire-inscription">
+    <div class="champ"><label>Nom</label><input name="nom" required></div>
+    <div class="champ"><label>Prénom</label><input name="prenom" required></div>
+    <div class="champ"><label>Email</label><input name="email" type="email" required></div>
+    <div class="champ"><label>Mot de passe</label><input name="mot_de_passe" type="password" minlength="6" required></div>
+    <div class="champ"><label>Numéro de téléphone</label><input name="msisdn" placeholder="+221771234567" required></div>
+    <div class="champ">
+      <label>Forfait souhaité</label>
+      <select name="forfait_id" id="select-forfait" required></select>
+    </div>
+    <button type="submit" class="bouton">Créer mon compte</button>
+    <p class="message-erreur" id="erreur"></p>
+    <p class="message-succes" id="succes"></p>
+  </form>
+
+  <p class="lien-bas">Déjà un compte ? <a href="/index.html">Se connecter</a></p>
+</div>
+
+<script>
+fetch('/api/forfaits')
+  .then((r) => r.json())
+  .then((forfaits) => {
+    document.getElementById('select-forfait').innerHTML = forfaits
+      .map((f) => `<option value="${f.id}">${f.nom} — ${Number(f.prix_mensuel_fcfa).toLocaleString('fr-FR')} FCFA/mois</option>`)
+      .join('');
+  });
+
+document.getElementById('formulaire-inscription').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const erreurEl = document.getElementById('erreur');
+  const succesEl = document.getElementById('succes');
+  erreurEl.textContent = ''; succesEl.textContent = '';
+
+  const donnees = Object.fromEntries(new FormData(e.target));
+
+  try {
+    const reponse = await fetch('/api/auth/inscription-client', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(donnees),
+    });
+    const corps = await reponse.json();
+
+    if (reponse.status === 201) {
+      localStorage.setItem('token', corps.token);
+      succesEl.textContent = 'Compte créé ! Redirection...';
+      setTimeout(() => (window.location.href = '/index.html'), 1000);
+    } else if (reponse.status === 422) {
+      erreurEl.textContent = corps.erreurs?.map((er) => er.message).join(' — ') || 'Données invalides';
+    } else if (reponse.status === 409) {
+      erreurEl.textContent = corps.message || 'Cet email ou ce numéro est déjà utilisé';
+    } else {
+      erreurEl.textContent = corps.message || 'Erreur inattendue';
+    }
+  } catch (err) {
+    erreurEl.textContent = 'Impossible de contacter le serveur';
+  }
+});
+</script>
+</body>
+</html>

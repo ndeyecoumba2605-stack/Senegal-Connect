@@ -58,7 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_factures_client  ON factures(client_id);
 CREATE INDEX IF NOT EXISTS idx_factures_statut  ON factures(statut);
 CREATE INDEX IF NOT EXISTS idx_factures_periode ON factures(periode);
 
--- ── Table des tickets de support (utilisée par Linguère en M3/M4) ───
+-- ── Table des tickets de support ─────────────────────────────────
 CREATE TABLE IF NOT EXISTS tickets (
     id         SERIAL PRIMARY KEY,
     client_id  INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
@@ -120,28 +120,23 @@ CREATE TABLE IF NOT EXISTS appels (
 CREATE INDEX IF NOT EXISTS idx_appels_ticket ON appels(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_appels_statut ON appels(statut);
 
--- ══════════════════════════════════════════════════════════
--- Jeu de données de test (mot de passe en clair : "polytech2026")
--- Génère le vrai hash avec :
---   node -e "console.log(require('bcryptjs').hashSync('polytech2026', 12))"
--- puis remplace la valeur ci-dessous.
--- ══════════════════════════════════════════════════════════
-INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, role) VALUES
-('Ndiaye', 'Awa',     'awa.ndiaye@senegalconnect.sn',  '$2b$12$REMPLACE_PAR_TON_HASH_BCRYPT', 'client'),
-('Diop',   'Moussa',  'moussa.diop@senegalconnect.sn', '$2b$12$REMPLACE_PAR_TON_HASH_BCRYPT', 'client'),
-('Fall',   'Ibrahima','agent.fall@senegalconnect.sn',  '$2b$12$REMPLACE_PAR_TON_HASH_BCRYPT', 'agent'),
-('Sarr',   'Khady',   'admin.sarr@senegalconnect.sn',  '$2b$12$REMPLACE_PAR_TON_HASH_BCRYPT', 'admin');
+-- ── Table des demandes de réinitialisation de mot de passe ──────────
+CREATE TABLE IF NOT EXISTS reinitialisations_mdp (
+    id             SERIAL PRIMARY KEY,
+    utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+    token          VARCHAR(255) NOT NULL UNIQUE,
+    expire_le      TIMESTAMPTZ NOT NULL,
+    cree_le        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_reinitialisations_token ON reinitialisations_mdp(token);
 
+-- ══════════════════════════════════════════════════════════
+-- Jeu de données de test — UNIQUEMENT les forfaits.
+-- Aucun utilisateur pré-établi : les comptes sont créés via
+-- /api/auth/inscription-client (clients) ou /api/auth/register (agents/admins).
+-- ══════════════════════════════════════════════════════════
 INSERT INTO forfaits (nom, quota_data_go, quota_voix_min, prix_mensuel_fcfa, actif) VALUES
 ('Forfait Eco',      2,  60,   3000, TRUE),
 ('Forfait Confort',  10, 300,  8000, TRUE),
 ('Forfait Premium',  30, 1000, 15000, TRUE),
 ('Forfait Illimite', 50, 3000, 25000, TRUE);
-
-INSERT INTO clients (utilisateur_id, msisdn, forfait_id, statut) VALUES
-(1, '+221771234567', 2, 'actif'),
-(2, '+221765554433', 1, 'actif');
-
-INSERT INTO factures (client_id, reference, periode, montant_fcfa, statut) VALUES
-(1, 'FAC-202506-0001', '2026-06', 8000, 'payee'),
-(2, 'FAC-202506-0002', '2026-06', 3000, 'impayee');

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sénégal Connect — Réinitialiser le mot de passe</title>
+<style>
+  :root { --vert: #00853f; --vert-fonce: #006b32; --bordure: #e0e4e8; }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--vert-fonce), var(--vert)); padding: 20px; }
+  .carte { background: white; padding: 36px; border-radius: 12px; width: 100%; max-width: 400px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+  .carte h1 { font-size: 20px; margin-bottom: 22px; }
+  .champ { margin-bottom: 14px; }
+  .champ label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .champ input { width: 100%; padding: 10px 12px; border: 1px solid var(--bordure); border-radius: 8px; font-size: 14px; }
+  .bouton { width: 100%; padding: 11px; background: var(--vert); color: white; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer; }
+  .bouton:hover { background: var(--vert-fonce); }
+  .message-erreur { color: #d32f2f; font-size: 13px; margin-top: 10px; }
+  .message-succes { color: var(--vert); font-size: 13px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="carte">
+  <h1>Nouveau mot de passe</h1>
+
+  <form id="formulaire-reinit">
+    <input type="hidden" name="token" id="champ-token">
+    <div class="champ"><label>Nouveau mot de passe</label><input name="nouveau_mot_de_passe" type="password" minlength="6" required></div>
+    <button type="submit" class="bouton">Réinitialiser</button>
+    <p class="message-erreur" id="erreur"></p>
+    <p class="message-succes" id="succes"></p>
+  </form>
+</div>
+
+<script>
+const parametres = new URLSearchParams(window.location.search);
+document.getElementById('champ-token').value = parametres.get('token') || '';
+
+document.getElementById('formulaire-reinit').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const erreurEl = document.getElementById('erreur');
+  const succesEl = document.getElementById('succes');
+  erreurEl.textContent = ''; succesEl.textContent = '';
+
+  const donnees = Object.fromEntries(new FormData(e.target));
+
+  try {
+    const reponse = await fetch('/api/auth/reinitialiser-mot-de-passe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(donnees),
+    });
+    const corps = await reponse.json();
+
+    if (reponse.ok) {
+      succesEl.textContent = 'Mot de passe réinitialisé ! Redirection...';
+      setTimeout(() => (window.location.href = '/index.html'), 1200);
+    } else {
+      erreurEl.textContent = corps.message || corps.erreurs?.[0]?.message || 'Erreur';
+    }
+  } catch (err) {
+    erreurEl.textContent = 'Impossible de contacter le serveur';
+  }
+});
+</script>
+</body>
+</html>

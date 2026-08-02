@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sénégal Connect — Support Client</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<script>
+  // Garde d'accès : pas de token → retour à la connexion
+  if (!localStorage.getItem('token')) {
+    window.location.href = 'connexion.html';
+  }
+</script>
+
+<header class="barre-haut">
+  <div class="logo">Sénégal Connect</div>
+  <div class="utilisateur-connecte">
+    <span id="nom-utilisateur"></span>
+    <span id="role-utilisateur" class="badge-role"></span>
+    <button id="btn-deconnexion">Déconnexion</button>
+  </div>
+</header>
+
+<div class="corps-app">
+
+  <aside class="colonne-tickets">
+    <div class="entete-colonne">
+      <h2>Tickets</h2>
+      <button id="btn-nouveau-ticket">+ Nouveau</button>
+    </div>
+    <ul id="liste-tickets" class="liste-tickets"></ul>
+  </aside>
+
+  <main class="colonne-chat">
+    <div id="chat-vide" class="chat-vide">
+      <p>Sélectionnez ou ouvrez un ticket pour démarrer une conversation.</p>
+    </div>
+
+    <div id="chat-actif" class="chat-actif cache">
+      <div class="entete-ticket">
+        <div>
+          <h3 id="sujet-ticket"></h3>
+          <span id="statut-ticket" class="badge-statut"></span>
+        </div>
+        <div class="actions-ticket">
+          <button id="btn-appel-audio" title="Appel audio">📞</button>
+          <button id="btn-appel-video" title="Appel vidéo">🎥</button>
+          <button id="btn-fermer-ticket" title="Fermer le ticket">Fermer</button>
+        </div>
+      </div>
+
+      <div id="fil-messages" class="fil-messages"></div>
+      <div id="indicateur-frappe" class="indicateur-frappe cache"></div>
+
+      <form id="form-message" class="zone-saisie">
+        <button type="button" id="btn-emoji" title="Émojis">😊</button>
+        <button type="button" id="btn-fichier" title="Partager un fichier">📎</button>
+        <input type="file" id="input-fichier" hidden>
+        <input type="text" id="input-message" placeholder="Écrire un message..." autocomplete="off">
+        <button type="submit">Envoyer</button>
+      </form>
+
+      <div id="selecteur-emoji" class="selecteur-emoji cache">
+        <span>😀</span><span>😂</span><span>😍</span><span>👍</span>
+        <span>🙏</span><span>😢</span><span>😡</span><span>🎉</span>
+        <span>🔥</span><span>👏</span><span>😮</span><span>❤️</span>
+      </div>
+    </div>
+  </main>
+
+  <aside class="colonne-details cache" id="colonne-details">
+    <h2>Détails abonné</h2>
+    <div id="details-client"></div>
+  </aside>
+
+</div>
+
+<div id="modale-appel-entrant" class="modale cache">
+  <div class="contenu-modale">
+    <p id="texte-appel-entrant">Appel entrant...</p>
+    <div class="actions-modale">
+      <button id="btn-accepter-appel">Accepter</button>
+      <button id="btn-refuser-appel">Refuser</button>
+    </div>
+  </div>
+</div>
+
+<div id="interface-appel" class="interface-appel cache">
+  <div class="zone-video">
+    <video id="video-distante" autoplay playsinline></video>
+    <video id="video-locale" autoplay playsinline muted></video>
+  </div>
+  <div class="barre-controles-appel">
+    <span id="chrono-appel">00:00</span>
+    <button id="btn-toggle-micro" title="Micro">🎙️</button>
+    <button id="btn-toggle-camera" title="Caméra">📷</button>
+    <button id="btn-partage-ecran" title="Partager l'écran">🖥️</button>
+    <button id="btn-raccrocher" title="Raccrocher" class="btn-raccrocher">📵</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="js/webrtc.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

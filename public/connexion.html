@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connexion — Sénégal Connect</title>
+<link rel="stylesheet" href="css/theme.css">
+</head>
+<body>
+
+<header class="entete-simple">
+  <a href="index.html" class="logo-hero">Sénégal <span>Connect</span></a>
+  <nav><a href="inscription.html">Créer un compte</a></nav>
+</header>
+
+<section class="page-formulaire">
+  <div class="motif-wax motif-wax--bas"></div>
+  <div class="carte-formulaire">
+    <h2>🇸🇳 Bienvenue</h2>
+    <p class="sous-titre">Connectez-vous à votre espace Sénégal Connect</p>
+
+    <div id="banniere-succes" class="message-succes"></div>
+
+    <form id="form-connexion">
+      <div class="champ">
+        <label>✉️ Email</label>
+        <input id="champ-email" type="email" placeholder="vous@exemple.sn" autocomplete="username" required>
+      </div>
+      <div class="champ">
+        <label>🔒 Mot de passe</label>
+        <input id="champ-mdp" type="password" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+      <button id="bouton-connexion" type="submit" class="bouton-form">Se connecter</button>
+      <p id="erreur-connexion" class="message-erreur"></p>
+    </form>
+
+    <div class="separateur-liens">
+      <a href="mot-de-passe-oublie.html">Mot de passe oublié ?</a>
+      <a href="inscription.html">Créer un compte →</a>
+    </div>
+    <p class="connexion-securisee">🔒 Connexion sécurisée</p>
+  </div>
+</section>
+
+<script>
+  // Affiche un message de succès si on arrive juste après une inscription
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('inscrit') === '1') {
+    document.getElementById('banniere-succes').textContent = '✅ Compte créé avec succès, vous pouvez vous connecter.';
+  }
+
+  document.getElementById('form-connexion').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const bouton = document.getElementById('bouton-connexion');
+    const erreur = document.getElementById('erreur-connexion');
+    erreur.textContent = '';
+    bouton.disabled = true;
+    bouton.textContent = 'Connexion...';
+
+    try {
+      const reponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('champ-email').value,
+          mot_de_passe: document.getElementById('champ-mdp').value,
+        }),
+      });
+      const donnees = await reponse.json();
+
+      if (!reponse.ok) {
+        erreur.textContent = donnees.message || 'Échec de la connexion';
+        return;
+      }
+
+      localStorage.setItem('token', donnees.token);
+      localStorage.setItem('utilisateur', JSON.stringify(donnees.utilisateur));
+      window.location.href = 'app.html';
+    } catch (err) {
+      erreur.textContent = 'Erreur de connexion au serveur';
+    } finally {
+      bouton.disabled = false;
+      bouton.textContent = 'Se connecter';
+    }
+  });
+</script>
+</body>
+</html>

@@ -3,93 +3,101 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sénégal Connect — Créer un compte</title>
-<style>
-  :root { --vert: #00853f; --vert-fonce: #006b32; --fond: #f0f2f5; --bordure: #e0e4e8; }
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-  body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, var(--vert-fonce), var(--vert)); padding: 20px; }
-  .carte { background: white; padding: 36px; border-radius: 12px; width: 100%; max-width: 420px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-  .carte h1 { font-size: 22px; margin-bottom: 4px; }
-  .carte p.sous-titre { color: #777; font-size: 13px; margin-bottom: 22px; }
-  .champ { margin-bottom: 14px; }
-  .champ label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .champ input, .champ select { width: 100%; padding: 10px 12px; border: 1px solid var(--bordure); border-radius: 8px; font-size: 14px; }
-  .champ input:focus, .champ select:focus { outline: none; border-color: var(--vert); }
-  .bouton { width: 100%; padding: 11px; background: var(--vert); color: white; border: none; border-radius: 8px;
-    font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 6px; }
-  .bouton:hover { background: var(--vert-fonce); }
-  .message-erreur { color: #d32f2f; font-size: 13px; margin-top: 10px; }
-  .message-succes { color: var(--vert); font-size: 13px; margin-top: 10px; }
-  .lien-bas { text-align: center; margin-top: 18px; font-size: 13px; }
-  .lien-bas a { color: var(--vert-fonce); text-decoration: none; font-weight: 600; }
-</style>
+<title>Créer un compte — Sénégal Connect</title>
+<link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
 
-<div class="carte">
-  <h1>Créer un compte</h1>
-  <p class="sous-titre">Rejoignez Sénégal Connect</p>
+<header class="entete-simple">
+  <a href="index.html" class="logo-hero">Sénégal <span>Connect</span></a>
+  <nav><a href="connexion.html">Se connecter</a></nav>
+</header>
 
-  <form id="formulaire-inscription">
-    <div class="champ"><label>Nom</label><input name="nom" required></div>
-    <div class="champ"><label>Prénom</label><input name="prenom" required></div>
-    <div class="champ"><label>Email</label><input name="email" type="email" required></div>
-    <div class="champ"><label>Mot de passe</label><input name="mot_de_passe" type="password" minlength="6" required></div>
-    <div class="champ"><label>Numéro de téléphone</label><input name="msisdn" placeholder="+221771234567" required></div>
-    <div class="champ">
-      <label>Forfait souhaité</label>
-      <select name="forfait_id" id="select-forfait" required></select>
+<section class="page-formulaire">
+  <div class="motif-wax motif-wax--bas"></div>
+  <div class="carte-formulaire">
+    <h2>🇸🇳 Créer un compte</h2>
+    <p class="sous-titre">Rejoignez Sénégal Connect en quelques secondes</p>
+
+    <form id="form-inscription">
+      <div class="champ">
+        <label>Prénom</label>
+        <input id="champ-prenom" type="text" placeholder="Aminata" required>
+      </div>
+      <div class="champ">
+        <label>Nom</label>
+        <input id="champ-nom" type="text" placeholder="Diallo" required>
+      </div>
+      <div class="champ">
+        <label>✉️ Email</label>
+        <input id="champ-email" type="email" placeholder="vous@exemple.sn" autocomplete="username" required>
+      </div>
+      <div class="champ">
+        <label>🔒 Mot de passe</label>
+        <input id="champ-mdp" type="password" placeholder="Au moins 6 caractères" autocomplete="new-password" required minlength="6">
+      </div>
+      <div class="champ">
+        <label>🔒 Confirmer le mot de passe</label>
+        <input id="champ-mdp-confirmation" type="password" placeholder="••••••••" autocomplete="new-password" required minlength="6">
+      </div>
+
+      <button id="bouton-inscription" type="submit" class="bouton-form">Créer mon compte</button>
+      <p id="erreur-inscription" class="message-erreur"></p>
+    </form>
+
+    <div class="separateur-liens">
+      <a href="index.html">← Retour à l'accueil</a>
+      <a href="connexion.html">Déjà inscrit ?</a>
     </div>
-    <button type="submit" class="bouton">Créer mon compte</button>
-    <p class="message-erreur" id="erreur"></p>
-    <p class="message-succes" id="succes"></p>
-  </form>
-
-  <p class="lien-bas">Déjà un compte ? <a href="/index.html">Se connecter</a></p>
-</div>
+    <p class="connexion-securisee">🔒 Vos données restent confidentielles</p>
+  </div>
+</section>
 
 <script>
-fetch('/api/forfaits')
-  .then((r) => r.json())
-  .then((forfaits) => {
-    document.getElementById('select-forfait').innerHTML = forfaits
-      .map((f) => `<option value="${f.id}">${f.nom} — ${Number(f.prix_mensuel_fcfa).toLocaleString('fr-FR')} FCFA/mois</option>`)
-      .join('');
-  });
+  document.getElementById('form-inscription').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const bouton = document.getElementById('bouton-inscription');
+    const erreur = document.getElementById('erreur-inscription');
+    erreur.textContent = '';
 
-document.getElementById('formulaire-inscription').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const erreurEl = document.getElementById('erreur');
-  const succesEl = document.getElementById('succes');
-  erreurEl.textContent = ''; succesEl.textContent = '';
-
-  const donnees = Object.fromEntries(new FormData(e.target));
-
-  try {
-    const reponse = await fetch('/api/auth/inscription-client', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(donnees),
-    });
-    const corps = await reponse.json();
-
-    if (reponse.status === 201) {
-      localStorage.setItem('token', corps.token);
-      succesEl.textContent = 'Compte créé ! Redirection...';
-      setTimeout(() => (window.location.href = '/index.html'), 1000);
-    } else if (reponse.status === 422) {
-      erreurEl.textContent = corps.erreurs?.map((er) => er.message).join(' — ') || 'Données invalides';
-    } else if (reponse.status === 409) {
-      erreurEl.textContent = corps.message || 'Cet email ou ce numéro est déjà utilisé';
-    } else {
-      erreurEl.textContent = corps.message || 'Erreur inattendue';
+    const motDePasse = document.getElementById('champ-mdp').value;
+    const confirmation = document.getElementById('champ-mdp-confirmation').value;
+    if (motDePasse !== confirmation) {
+      erreur.textContent = 'Les mots de passe ne correspondent pas';
+      return;
     }
-  } catch (err) {
-    erreurEl.textContent = 'Impossible de contacter le serveur';
-  }
-});
+
+    bouton.disabled = true;
+    bouton.textContent = 'Création...';
+
+    try {
+      const reponse = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nom: document.getElementById('champ-nom').value,
+          prenom: document.getElementById('champ-prenom').value,
+          email: document.getElementById('champ-email').value,
+          mot_de_passe: motDePasse,
+          role: 'client', // inscription publique = toujours un compte client (abonné)
+        }),
+      });
+      const donnees = await reponse.json();
+
+      if (!reponse.ok) {
+        // Affiche la première erreur de validation, ou le message générique (ex: email déjà utilisé)
+        erreur.textContent = donnees.erreurs?.[0]?.message || donnees.message || "Échec de l'inscription";
+        return;
+      }
+
+      window.location.href = 'connexion.html?inscrit=1';
+    } catch (err) {
+      erreur.textContent = 'Erreur de connexion au serveur';
+    } finally {
+      bouton.disabled = false;
+      bouton.textContent = 'Créer mon compte';
+    }
+  });
 </script>
 </body>
 </html>

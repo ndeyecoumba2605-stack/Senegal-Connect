@@ -1,0 +1,122 @@
+@keyframes pulserPoint { 0%,100% { opacity:.35 } 50% { opacity:1 } }
+@keyframes derouler { from { stroke-dashoffset: var(--longueur,1200); } to { stroke-dashoffset: 0; } }
+@keyframes filer { 0%{offset-distance:0%;opacity:0} 8%{opacity:1} 92%{opacity:1} 100%{offset-distance:100%;opacity:0} }
+@keyframes flotterBarque { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-5px) rotate(-1.4deg)} }
+@keyframes derive { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+@keyframes scintiller { 0%,100%{box-shadow:0 0 70px 18px rgba(255,212,71,.45)} 50%{box-shadow:0 0 90px 26px rgba(255,212,71,.65)} }
+@keyframes voler { 0%{transform:translate(0,0);opacity:0} 6%{opacity:.85} 50%{transform:translate(65vw,-16px)} 94%{opacity:.85} 100%{transform:translate(118vw,8px);opacity:0} }
+@keyframes clignoterPhare { 0%,100%{opacity:.4} 50%{opacity:1} }
+@keyframes flotterCarte { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+@keyframes apparitionCarte { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+
+#hero {
+  position: relative; min-height: 100vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  background: linear-gradient(160deg, #FBD268 0%, var(--jaune-or) 10%, var(--corail) 24%,
+    #7C5A72 42%, #3E5C78 58%, var(--bleu-profond) 76%, var(--bleu-nuit) 100%);
+}
+.capa-soleil { position:absolute; inset:0; z-index:1; }
+.soleil-halo { position:absolute; top:21%; left:13%; width:190px; height:190px; border-radius:50%;
+  background: radial-gradient(circle, rgba(255,229,153,.55), transparent 70%); filter: blur(2px); }
+.soleil-corps { position:absolute; top:25.5%; left:16%; width:112px; height:112px; border-radius:50%;
+  background: radial-gradient(circle at 35% 32%, #fff8e0, var(--jaune-or) 55%, var(--corail) 92%);
+  box-shadow: 0 0 70px 18px rgba(255,212,71,.45); animation: scintiller 4.5s ease-in-out infinite; }
+
+.capa-reseau { position:absolute; inset:0; z-index:2; }
+svg.reseau-senegal { width:100%; height:100%; }
+.carte-senegal { fill:none; stroke: var(--jaune-or); stroke-width:2; stroke-linejoin:round; opacity:.55;
+  --longueur:1700; stroke-dasharray:1700; stroke-dashoffset:1700; animation: derouler 3.2s ease forwards .2s; }
+.ligne-fibre { fill:none; stroke: rgba(255,255,255,.5); stroke-width:1.3; --longueur:260; stroke-dasharray:260;
+  stroke-dashoffset:260; animation: derouler 1.3s ease forwards both; filter: drop-shadow(0 0 3px rgba(15,185,177,.65)); }
+.particule-fibre { fill:#fff; filter: drop-shadow(0 0 4px #fff); animation: filer 3.2s linear infinite; }
+.noeud-ville { fill: var(--jaune-or); filter: drop-shadow(0 0 5px rgba(255,212,71,.85)); animation: pulserPoint 3s ease-in-out infinite; }
+.noeud-principal .noeud-ville { fill:#fff; filter: drop-shadow(0 0 7px rgba(255,255,255,.9)); }
+.etiquette-ville { font-family: var(--font-corps); font-size:11px; fill: rgba(255,255,255,.8); letter-spacing:.2px; }
+.etiquette-principale { font-size:12px; font-weight:700; fill: var(--jaune-or); }
+
+.capa-skyline { position:absolute; left:0; right:0; bottom:14%; height:26%; z-index:3; }
+svg.skyline-dakar { width:100%; height:100%; }
+.lumiere-phare { animation: clignoterPhare 3s ease-in-out infinite; filter: drop-shadow(0 0 4px rgba(255,212,71,.9)); }
+
+.capa-ocean { position:absolute; left:0; right:0; bottom:0; height:24%; overflow:hidden; z-index:4; }
+.vague { position:absolute; bottom:0; left:0; width:200%; height:100%; }
+.vague svg { width:100%; height:100%; }
+.vague--arriere { height:55%; opacity:.45; animation: derive 30s linear infinite; }
+.vague--milieu  { height:75%; opacity:.7;  animation: derive 21s linear infinite reverse; }
+.vague--avant   { height:100%; opacity:.95; animation: derive 15s linear infinite; }
+
+.capa-pirogues { position:absolute; left:0; right:0; bottom:6%; height:15%; z-index:5; }
+svg.pirogues-senegal { width:100%; height:100%; overflow:visible; }
+.barque { transform-box: fill-box; transform-origin:center; animation: flotterBarque 5.5s ease-in-out infinite; }
+
+.capa-oiseaux { position:absolute; inset:0; z-index:3; pointer-events:none; }
+.oiseau { position:absolute; top:16%; left:-8%; width:34px; height:14px; opacity:0; animation: voler 26s linear infinite; }
+.oiseau--2 { top:11%; animation-duration:32s; animation-delay:8s; }
+.oiseau--3 { top:23%; animation-duration:29s; animation-delay:17s; }
+
+.voile-sombre { position:absolute; inset:0; z-index:6;
+  background: linear-gradient(180deg, rgba(4,15,26,.3) 0%, rgba(4,15,26,.08) 32%, rgba(4,15,26,.55) 100%); }
+
+header.entete-hero { position:relative; z-index:10; display:flex; align-items:center; justify-content:space-between; padding:24px 48px; }
+.logo-hero { color:white; font-size:20px; font-weight:800; letter-spacing:-.3px; }
+.logo-hero span { color: var(--jaune-or); }
+header.entete-hero nav a { color:white; font-size:14px; margin-left:28px; font-weight:500;
+  border-bottom:1px solid transparent; padding-bottom:2px; transition:border-color .15s; }
+header.entete-hero nav a:hover { border-color: var(--jaune-or); }
+
+.ligne-hero { position:relative; z-index:10; flex:1; display:flex; align-items:center; justify-content:space-between;
+  gap:40px; padding:0 48px; max-width:1280px; margin:0 auto; width:100%; }
+.contenu-hero { max-width:620px; }
+.oeillet-hero { display:inline-flex; align-items:center; gap:6px; background: rgba(255,255,255,.14);
+  backdrop-filter: blur(6px); padding:6px 14px; border-radius:999px; font-size:12.5px; font-weight:600;
+  letter-spacing:.3px; color:white; border:1px solid rgba(255,255,255,.28); margin-bottom:18px; }
+.contenu-hero h1 { color:white; font-size: clamp(2.1rem, 4.2vw, 3.35rem); font-weight:800; line-height:1.12;
+  letter-spacing:-.7px; text-shadow: 0 2px 20px rgba(0,0,0,.25); animation-delay:.1s; }
+.contenu-hero h1 em { font-style:italic; font-family: var(--font-accent); font-weight:600; color: var(--jaune-or); }
+.contenu-hero p.sous-titre-hero { color: rgba(255,255,255,.92); font-size:17px; margin-top:20px; max-width:560px;
+  line-height:1.6; animation-delay:.3s; }
+.boutons-hero { display:flex; gap:14px; margin-top:32px; flex-wrap:wrap; animation-delay:.5s; }
+.bouton-plein { background: var(--jaune-or); color:#3a2e00; border:none; padding:15px 26px; border-radius:8px;
+  font-size:14px; font-weight:700; cursor:pointer; display:inline-block; transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255,212,71,.35); transition: transform .15s, box-shadow .15s; }
+.bouton-plein:hover { transform: translateY(-4px); box-shadow: 0 12px 26px rgba(255,212,71,.45); }
+.bouton-contour { background: rgba(255,255,255,.12); color:white; border:1.5px solid rgba(255,255,255,.7);
+  padding:15px 26px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; display:inline-block;
+  transform: translateY(-2px); transition: background .15s, transform .15s; }
+.bouton-contour:hover { background: rgba(255,255,255,.2); transform: translateY(-4px); }
+
+.services-rapides { display:flex; flex-wrap:wrap; gap:10px 22px; margin-top:34px; list-style:none; animation-delay:.65s; }
+.services-rapides li { display:flex; align-items:center; gap:8px; color: rgba(255,255,255,.88); font-size:13.5px; font-weight:500; }
+.icone-service { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px;
+  border-radius:50%; background: rgba(255,255,255,.14); font-size:13px; }
+
+.capa-carte-flottante { flex:0 0 auto; display:none; }
+.carte-etat { width:260px; padding:22px 22px 18px; background: rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.24);
+  border-radius:16px; backdrop-filter: blur(18px); box-shadow: 0 30px 80px rgba(0,0,0,.35); color:white; opacity:0;
+  animation: apparitionCarte .9s ease forwards .7s, flotterCarte 6s ease-in-out infinite 1.7s; }
+.carte-etat-entete { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; letter-spacing:.3px;
+  text-transform:uppercase; color: rgba(255,255,255,.85); padding-bottom:14px; margin-bottom:14px;
+  border-bottom:1px solid rgba(255,255,255,.18); }
+.point-actif { width:8px; height:8px; border-radius:50%; background: var(--turquoise);
+  box-shadow: 0 0 0 4px rgba(15,185,177,.28); animation: pulserPoint 2s ease-in-out infinite; }
+.stat-ligne { display:flex; align-items:center; justify-content:space-between; padding:9px 0; font-size:13.5px; color: rgba(255,255,255,.9); }
+.stat-ligne + .stat-ligne { border-top:1px solid rgba(255,255,255,.1); }
+.stat-ligne strong { font-size:15px; font-weight:700; color:white; }
+
+.indicateur-scroll { position:relative; z-index:10; text-align:center; padding-bottom:26px; color: rgba(255,255,255,.75);
+  font-size:12px; letter-spacing:1px; text-transform:uppercase; animation-delay:.9s; }
+
+@media (max-width: 900px) {
+  .ligne-hero { flex-direction:column; align-items:flex-start; justify-content:center; gap:28px; padding-top:90px; padding-bottom:40px; }
+  .capa-carte-flottante { display:none !important; }
+}
+@media (min-width: 901px) { .capa-carte-flottante { display:block; } }
+@media (max-width: 720px) {
+  .contenu-hero h1 { font-size:30px; }
+  header.entete-hero { padding:20px 24px; }
+  header.entete-hero nav a:first-child { display:none; }
+  .ligne-hero { padding:0 24px; padding-top:84px; }
+  .soleil-corps { width:74px; height:74px; }
+  .soleil-halo { width:120px; height:120px; }
+  .services-rapides { gap:8px 16px; }
+}

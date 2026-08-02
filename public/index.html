@@ -3,10 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sénégal Connect — Support Client</title>
+<title>Sénégal Connect — Votre opérateur de confiance</title>
 <style>
 :root {
-  /* Palette Sénégal Connect */
   --bleu-atlantique: #005F99;
   --bleu-profond: #073B57;
   --bleu-nuit: #06263B;
@@ -17,10 +16,8 @@
   --corail: #E8623D;
   --rouge-senegal: #CE1126;
   --sable: #F7E7C6;
-  --sable-fonce: #ECDBB4;
-  --encre: #16232E;
   --bordure: #E6D9B8;
-
+  --encre: #16232E;
   --font-corps: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-accent: Georgia, 'Times New Roman', serif;
 }
@@ -28,159 +25,93 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body { font-family: var(--font-corps); color: var(--encre); background: var(--sable); overflow-x: hidden; }
-.cache { display: none !important; }
-img, svg { display: block; }
-a { color: inherit; }
+a { text-decoration: none; color: inherit; }
 
-a:focus-visible, button:focus-visible, input:focus-visible {
-  outline: 2px solid var(--jaune-or);
-  outline-offset: 2px;
-}
+a:focus-visible, button:focus-visible { outline: 2px solid var(--jaune-or); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }
 
-/* ══════════════════ ANIMATIONS PARTAGÉES ══════════════════ */
-@keyframes apparition {
-  from { opacity: 0; transform: translateY(22px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes pulserPoint {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 1; }
-}
-@keyframes derouler {
-  from { stroke-dashoffset: var(--longueur, 1200); }
-  to { stroke-dashoffset: 0; }
-}
-@keyframes filer {
-  0%   { offset-distance: 0%;   opacity: 0; }
-  8%   { opacity: 1; }
-  92%  { opacity: 1; }
-  100% { offset-distance: 100%; opacity: 0; }
-}
-@keyframes flotterBarque {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50%      { transform: translateY(-5px) rotate(-1.4deg); }
-}
-@keyframes derive {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-@keyframes scintiller {
-  0%, 100% { box-shadow: 0 0 70px 18px rgba(255,212,71,0.45); }
-  50%      { box-shadow: 0 0 90px 26px rgba(255,212,71,0.65); }
-}
-@keyframes voler {
-  0%   { transform: translate(0,0);        opacity: 0; }
-  6%   { opacity: .85; }
-  50%  { transform: translate(65vw,-16px); }
-  94%  { opacity: .85; }
-  100% { transform: translate(118vw,8px);  opacity: 0; }
-}
-@keyframes clignoterPhare {
-  0%, 100% { opacity: .4; }
-  50%      { opacity: 1; }
-}
-@keyframes flotterCarte {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-8px); }
-}
-@keyframes apparitionCarte {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+@keyframes apparition { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulserPoint { 0%,100% { opacity:.35 } 50% { opacity:1 } }
+@keyframes derouler { from { stroke-dashoffset: var(--longueur,2500); } to { stroke-dashoffset: 0; } }
+@keyframes filer { 0%{offset-distance:0%;opacity:0} 8%{opacity:1} 92%{opacity:1} 100%{offset-distance:100%;opacity:0} }
+@keyframes flotterBarque { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-5px) rotate(-1.4deg)} }
+@keyframes derive { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+@keyframes scintiller { 0%,100%{box-shadow:0 0 70px 18px rgba(255,212,71,.45)} 50%{box-shadow:0 0 90px 26px rgba(255,212,71,.65)} }
+@keyframes voler { 0%{transform:translate(0,0);opacity:0} 6%{opacity:.85} 50%{transform:translate(65vw,-16px)} 94%{opacity:.85} 100%{transform:translate(118vw,8px);opacity:0} }
+@keyframes clignoterPhare { 0%,100%{opacity:.4} 50%{opacity:1} }
+@keyframes flotterCarte { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+@keyframes apparitionCarte { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
 
 .anim { opacity: 0; animation: apparition 0.8s ease forwards; }
 
-/* Motif géométrique inspiré du wax, très discret, dans les coins */
 .motif-wax {
-  position: absolute;
-  width: 240px; height: 240px;
-  opacity: .05;
-  pointer-events: none;
+  position: absolute; width: 240px; height: 240px; opacity: .05; pointer-events: none;
   background-image:
     repeating-linear-gradient(45deg, var(--jaune-or) 0 2px, transparent 2px 24px),
     repeating-linear-gradient(-45deg, var(--vert-senegal) 0 2px, transparent 2px 24px);
   z-index: 1;
 }
 .motif-wax--haut { top: -30px; right: -30px; }
-.motif-wax--bas  { bottom: -30px; left: -30px; }
 
-/* ══════════════════ HERO PLEINE PAGE ══════════════════ */
+/* ══════════════════ HERO ══════════════════ */
 #hero {
-  position: relative;
-  min-height: 100vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background: linear-gradient(160deg,
-    #FBD268 0%, var(--jaune-or) 10%, var(--corail) 24%,
+  position: relative; min-height: 100vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  background: linear-gradient(160deg, #FBD268 0%, var(--jaune-or) 10%, var(--corail) 24%,
     #7C5A72 42%, #3E5C78 58%, var(--bleu-profond) 76%, var(--bleu-nuit) 100%);
 }
 
-/* Soleil couchant */
 .capa-soleil { position: absolute; inset: 0; z-index: 1; }
 .soleil-halo {
-  position: absolute; top: 21%; left: 13%;
-  width: 190px; height: 190px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,229,153,.55), transparent 70%);
-  filter: blur(2px);
+  position: absolute; top: 21%; left: 13%; width: 190px; height: 190px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,229,153,.55), transparent 70%); filter: blur(2px);
 }
 .soleil-corps {
-  position: absolute; top: 25.5%; left: 16%;
-  width: 112px; height: 112px; border-radius: 50%;
+  position: absolute; top: 25.5%; left: 16%; width: 112px; height: 112px; border-radius: 50%;
   background: radial-gradient(circle at 35% 32%, #fff8e0, var(--jaune-or) 55%, var(--corail) 92%);
   box-shadow: 0 0 70px 18px rgba(255,212,71,0.45);
   animation: scintiller 4.5s ease-in-out infinite;
 }
 
-/* Réseau numérique + carte du Sénégal */
 .capa-reseau { position: absolute; inset: 0; z-index: 2; }
 svg.reseau-senegal { width: 100%; height: 100%; }
 
 .carte-senegal {
-  fill: none; stroke: var(--jaune-or); stroke-width: 2; stroke-linejoin: round;
-  opacity: .55; --longueur: 1700; stroke-dasharray: 1700; stroke-dashoffset: 1700;
+  fill: none !important;
+  stroke: var(--jaune-or);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: .65;
+  --longueur: 2500;
+  stroke-dasharray: 2500;
+  stroke-dashoffset: 2500;
   animation: derouler 3.2s ease forwards .2s;
 }
 .ligne-fibre {
   fill: none; stroke: rgba(255,255,255,.5); stroke-width: 1.3;
-  --longueur: 260; stroke-dasharray: 260; stroke-dashoffset: 260;
+  --longueur: 350; stroke-dasharray: 350; stroke-dashoffset: 350;
   animation: derouler 1.3s ease forwards both;
   filter: drop-shadow(0 0 3px rgba(15,185,177,.65));
 }
-.particule-fibre {
-  fill: #fff; filter: drop-shadow(0 0 4px #fff);
-  animation: filer 3.2s linear infinite;
-}
-.noeud-ville {
-  fill: var(--jaune-or);
-  filter: drop-shadow(0 0 5px rgba(255,212,71,.85));
-  animation: pulserPoint 3s ease-in-out infinite;
-}
-.noeud-principal .noeud-ville {
-  fill: #ffffff;
-  filter: drop-shadow(0 0 7px rgba(255,255,255,.9));
-}
-.etiquette-ville {
-  font-family: var(--font-corps); font-size: 11px;
-  fill: rgba(255,255,255,.8); letter-spacing: .2px;
-}
+.particule-fibre { fill: #fff; filter: drop-shadow(0 0 4px #fff); animation: filer 3.2s linear infinite; }
+.noeud-ville { fill: var(--jaune-or); filter: drop-shadow(0 0 5px rgba(255,212,71,.85)); animation: pulserPoint 3s ease-in-out infinite; }
+.noeud-principal .noeud-ville { fill: #ffffff; filter: drop-shadow(0 0 7px rgba(255,255,255,.9)); }
+.etiquette-ville { font-family: var(--font-corps); font-size: 11px; fill: rgba(255,255,255,.8); letter-spacing: .2px; }
 .etiquette-principale { font-size: 12px; font-weight: 700; fill: var(--jaune-or); }
+.etiquette-gambie { font-family: var(--font-corps); font-size: 10px; font-style: italic; fill: rgba(255,255,255,.55); letter-spacing: 1px; }
 
-/* Silhouette de Dakar : monument, mosquée, phare, plateau, baobab */
 .capa-skyline { position: absolute; left: 0; right: 0; bottom: 14%; height: 26%; z-index: 3; }
 svg.skyline-dakar { width: 100%; height: 100%; }
 .lumiere-phare { animation: clignoterPhare 3s ease-in-out infinite; filter: drop-shadow(0 0 4px rgba(255,212,71,.9)); }
 
-/* Océan animé, plusieurs couches */
 .capa-ocean { position: absolute; left: 0; right: 0; bottom: 0; height: 24%; overflow: hidden; z-index: 4; }
 .vague { position: absolute; bottom: 0; left: 0; width: 200%; height: 100%; }
 .vague svg { width: 100%; height: 100%; }
@@ -188,12 +119,10 @@ svg.skyline-dakar { width: 100%; height: 100%; }
 .vague--milieu  { height: 75%; opacity: .7;  animation: derive 21s linear infinite reverse; }
 .vague--avant   { height: 100%; opacity: .95; animation: derive 15s linear infinite; }
 
-/* Pirogues traditionnelles */
 .capa-pirogues { position: absolute; left: 0; right: 0; bottom: 6%; height: 15%; z-index: 5; }
 svg.pirogues-senegal { width: 100%; height: 100%; overflow: visible; }
 .barque { transform-box: fill-box; transform-origin: center; animation: flotterBarque 5.5s ease-in-out infinite; }
 
-/* Oiseaux */
 .capa-oiseaux { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .oiseau { position: absolute; top: 16%; left: -8%; width: 34px; height: 14px; opacity: 0; animation: voler 26s linear infinite; }
 .oiseau--2 { top: 11%; animation-duration: 32s; animation-delay: 8s; }
@@ -204,165 +133,86 @@ svg.pirogues-senegal { width: 100%; height: 100%; overflow: visible; }
   background: linear-gradient(180deg, rgba(4,15,26,0.3) 0%, rgba(4,15,26,0.08) 32%, rgba(4,15,26,0.55) 100%);
 }
 
-/* ── Barre du haut ── */
 header.entete-hero {
-  position: relative; z-index: 10;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 24px 48px;
+  position: relative; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 24px 48px;
 }
 .logo-hero { color: white; font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
 .logo-hero span { color: var(--jaune-or); }
 header.entete-hero nav a {
-  color: white; text-decoration: none; font-size: 14px; margin-left: 28px; font-weight: 500;
+  color: white; font-size: 14px; margin-left: 28px; font-weight: 500;
   border-bottom: 1px solid transparent; padding-bottom: 2px; transition: border-color .15s;
 }
 header.entete-hero nav a:hover { border-color: var(--jaune-or); }
 
-/* ── Contenu principal du hero ── */
 .ligne-hero {
-  position: relative; z-index: 10;
-  flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 40px;
-  padding: 0 48px; max-width: 1280px; margin: 0 auto; width: 100%;
+  position: relative; z-index: 10; flex: 1; display: flex; align-items: center; justify-content: space-between;
+  gap: 40px; padding: 0 48px; max-width: 1280px; margin: 0 auto; width: 100%;
 }
 .contenu-hero { max-width: 620px; }
 .oeillet-hero {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(255,255,255,.14); backdrop-filter: blur(6px);
-  padding: 6px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
-  letter-spacing: .3px; color: white; border: 1px solid rgba(255,255,255,.28);
-  margin-bottom: 18px;
+  display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.14); backdrop-filter: blur(6px);
+  padding: 6px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 600; letter-spacing: .3px; color: white;
+  border: 1px solid rgba(255,255,255,.28); margin-bottom: 18px;
 }
 .contenu-hero h1 {
-  color: white; font-size: clamp(2.1rem, 4.2vw, 3.35rem); font-weight: 800;
-  line-height: 1.12; letter-spacing: -0.7px;
-  text-shadow: 0 2px 20px rgba(0,0,0,0.25);
-  animation-delay: 0.1s;
+  color: white; font-size: clamp(2.1rem, 4.2vw, 3.35rem); font-weight: 800; line-height: 1.12; letter-spacing: -0.7px;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.25); animation-delay: 0.1s;
 }
-.contenu-hero h1 em {
-  font-style: italic; font-family: var(--font-accent); font-weight: 600; color: var(--jaune-or);
-}
+.contenu-hero h1 em { font-style: italic; font-family: var(--font-accent); font-weight: 600; color: var(--jaune-or); }
 .contenu-hero p.sous-titre-hero {
-  color: rgba(255,255,255,0.92); font-size: 17px; margin-top: 20px; max-width: 560px; line-height: 1.6;
-  animation-delay: 0.3s;
+  color: rgba(255,255,255,0.92); font-size: 17px; margin-top: 20px; max-width: 560px; line-height: 1.6; animation-delay: 0.3s;
 }
 .boutons-hero { display: flex; gap: 14px; margin-top: 32px; flex-wrap: wrap; animation-delay: 0.5s; }
 .bouton-plein {
   background: var(--jaune-or); color: #3a2e00; border: none; padding: 15px 26px; border-radius: 8px;
-  font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block;
-  transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255,212,71,0.35);
-  transition: transform 0.15s, box-shadow 0.15s;
+  font-size: 14px; font-weight: 700; cursor: pointer; display: inline-block; transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255,212,71,0.35); transition: transform 0.15s, box-shadow 0.15s;
 }
 .bouton-plein:hover { transform: translateY(-4px); box-shadow: 0 12px 26px rgba(255,212,71,0.45); }
 .bouton-contour {
   background: rgba(255,255,255,0.12); color: white; border: 1.5px solid rgba(255,255,255,0.7);
   padding: 15px 26px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
-  text-decoration: none; display: inline-block; transform: translateY(-2px);
-  transition: background 0.15s, transform 0.15s;
+  display: inline-block; transform: translateY(-2px); transition: background 0.15s, transform 0.15s;
 }
 .bouton-contour:hover { background: rgba(255,255,255,0.2); transform: translateY(-4px); }
 
-.services-rapides {
-  display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 34px; list-style: none;
-  animation-delay: 0.65s;
-}
-.services-rapides li {
-  display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,.88);
-  font-size: 13.5px; font-weight: 500;
-}
+.services-rapides { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 34px; list-style: none; animation-delay: 0.65s; }
+.services-rapides li { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,.88); font-size: 13.5px; font-weight: 500; }
 .icone-service {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; border-radius: 50%;
-  background: rgba(255,255,255,.14); font-size: 13px;
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  border-radius: 50%; background: rgba(255,255,255,.14); font-size: 13px;
 }
 
-/* Carte flottante en verre (aperçu réseau) */
 .capa-carte-flottante { flex: 0 0 auto; display: none; }
 .carte-etat {
-  width: 260px; padding: 22px 22px 18px;
-  background: rgba(255,255,255,.12);
-  border: 1px solid rgba(255,255,255,.24);
-  border-radius: 16px;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 30px 80px rgba(0,0,0,.35);
-  color: white;
-  opacity: 0;
+  width: 260px; padding: 22px 22px 18px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.24);
+  border-radius: 16px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 30px 80px rgba(0,0,0,.35); color: white; opacity: 0;
   animation: apparitionCarte .9s ease forwards .7s, flotterCarte 6s ease-in-out infinite 1.7s;
 }
 .carte-etat-entete {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12.5px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
-  color: rgba(255,255,255,.85); padding-bottom: 14px; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; letter-spacing: .3px;
+  text-transform: uppercase; color: rgba(255,255,255,.85); padding-bottom: 14px; margin-bottom: 14px;
   border-bottom: 1px solid rgba(255,255,255,.18);
 }
 .point-actif {
   width: 8px; height: 8px; border-radius: 50%; background: var(--turquoise);
-  box-shadow: 0 0 0 4px rgba(15,185,177,.28);
-  animation: pulserPoint 2s ease-in-out infinite;
+  box-shadow: 0 0 0 4px rgba(15,185,177,.28); animation: pulserPoint 2s ease-in-out infinite;
 }
-.stat-ligne {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 9px 0; font-size: 13.5px; color: rgba(255,255,255,.9);
-}
+.stat-ligne { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; font-size: 13.5px; color: rgba(255,255,255,.9); }
 .stat-ligne + .stat-ligne { border-top: 1px solid rgba(255,255,255,.1); }
 .stat-ligne strong { font-size: 15px; font-weight: 700; color: white; }
 
 .indicateur-scroll {
   position: relative; z-index: 10; text-align: center; padding-bottom: 26px;
-  color: rgba(255,255,255,0.75); font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
-  animation-delay: 0.9s;
-}
-
-/* ══════════════════ SECTION CONNEXION (sous le hero) ══════════════════ */
-#section-connexion {
-  position: relative; overflow: hidden;
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  background: var(--sable); padding: 60px 24px;
-}
-.carte-connexion {
-  position: relative; z-index: 2;
-  width: 100%; max-width: 400px; background: #fffdf8; border-radius: 16px;
-  padding: 40px 38px 34px; overflow: hidden;
-  box-shadow: 0 20px 60px rgba(11,42,67,0.12); border: 1px solid var(--bordure);
-}
-.carte-connexion::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 5px;
-  background: linear-gradient(90deg, var(--vert-senegal) 0%, var(--jaune-or) 50%, var(--rouge-senegal) 100%);
-}
-.carte-connexion h2 { font-size: 24px; margin-bottom: 4px; }
-.carte-connexion p.sous-titre { color: #7a7264; font-size: 13px; margin-bottom: 28px; }
-.champ { margin-bottom: 16px; }
-.champ label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-.champ input {
-  width: 100%; padding: 12px 14px; border: 1px solid var(--bordure); border-radius: 8px; font-size: 14px;
-  font-family: var(--font-corps);
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.champ input:focus {
-  outline: none; border-color: var(--turquoise); box-shadow: 0 0 0 3px rgba(15,185,177,0.15);
-}
-.bouton-connexion-form {
-  width: 100%; padding: 13px; background: var(--bleu-profond); color: white; border: none; border-radius: 8px;
-  font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s;
-}
-.bouton-connexion-form:hover { background: var(--bleu-nuit); }
-.message-erreur { color: #d32f2f; font-size: 13px; margin-top: 10px; min-height: 18px; }
-.separateur-liens { display: flex; justify-content: space-between; margin-top: 20px; font-size: 13px; }
-.separateur-liens a { text-decoration: none; transition: color 0.15s; }
-.separateur-liens a:first-child { color: #8a8172; }
-.separateur-liens a:last-child { color: var(--vert-senegal); font-weight: 700; }
-.connexion-securisee {
-  margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--bordure);
-  text-align: center; font-size: 12px; color: #9a917f; letter-spacing: .2px;
+  color: rgba(255,255,255,0.75); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; animation-delay: 0.9s;
 }
 
 @media (max-width: 900px) {
   .ligne-hero { flex-direction: column; align-items: flex-start; justify-content: center; gap: 28px; padding-top: 90px; padding-bottom: 40px; }
   .capa-carte-flottante { display: none !important; }
 }
-@media (min-width: 901px) {
-  .capa-carte-flottante { display: block; }
-}
+@media (min-width: 901px) { .capa-carte-flottante { display: block; } }
 @media (max-width: 720px) {
   .contenu-hero h1 { font-size: 30px; }
   header.entete-hero { padding: 20px 24px; }
@@ -372,331 +222,174 @@ header.entete-hero nav a:hover { border-color: var(--jaune-or); }
   .soleil-halo { width: 120px; height: 120px; }
   .services-rapides { gap: 8px 16px; }
 }
-
-/* ══════════════════ APP CHAT (fonctionnalité inchangée) ══════════════════ */
-#ecran-app { display: flex; height: 100vh; }
-#colonne-tickets { width: 250px; background: var(--bleu-nuit); color: white; overflow-y: auto; padding: 10px; }
-#colonne-tickets h2 { padding: 10px; font-size: 16px; font-weight: 600; }
-#colonne-tickets li { padding: 10px; cursor: pointer; border-radius: 8px; border-bottom: 1px solid rgba(255,255,255,.08); list-style: none; font-size: 13px; }
-#colonne-tickets li.selectionne, #colonne-tickets li:hover { background: rgba(255,255,255,.08); }
-
-#colonne-chat { flex: 1; display: flex; flex-direction: column; }
-#entete-chat { padding: 15px; background: white; border-bottom: 1px solid var(--bordure); display: flex; justify-content: space-between; align-items: center; }
-#entete-chat button { background: var(--turquoise); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; margin-left: 8px; font-weight: 600; }
-#zone-messages { flex: 1; overflow-y: auto; padding: 15px; background: #f4f2ec; }
-.message { margin: 8px 0; padding: 8px 12px; background: white; border-radius: 10px; max-width: 60%; box-shadow: 0 1px 3px rgba(11,42,67,.08); }
-.message .miniature { max-width: 200px; border-radius: 6px; }
-.accuse { font-size: 11px; color: #999; margin-left: 6px; }
-#indicateur-frappe { padding: 4px 15px; font-size: 12px; color: #888; }
-
-#zone-saisie { display: flex; padding: 10px; background: white; border-top: 1px solid var(--bordure); gap: 8px; }
-#champ-message { flex: 1; padding: 10px; border: 1px solid var(--bordure); border-radius: 8px; font-family: var(--font-corps); }
-#zone-saisie button { background: none; border: none; font-size: 18px; cursor: pointer; }
-#bouton-envoyer { background: var(--turquoise); color: white; padding: 0 18px; border-radius: 8px; font-size: 14px; font-weight: 600; }
-
-#modale-appel { position: fixed; inset: 0; background: #000; z-index: 100; }
-#video-distante { width: 100%; height: 100%; object-fit: cover; }
-#video-locale { position: absolute; bottom: 90px; right: 20px; width: 160px; border-radius: 8px; }
-#controles-appel { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; }
-#controles-appel button { width: 50px; height: 50px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; }
-#chronometre-appel { position: absolute; top: 20px; left: 20px; color: white; font-size: 18px; }
-
-#sonnerie-appel { position: fixed; top: 40%; left: 50%; transform: translate(-50%,-50%); background: white; padding: 30px; border-radius: 10px; text-align: center; z-index: 200; }
 </style>
 </head>
 <body>
 
-<!-- ═══════════════ ÉCRAN DE CONNEXION (hero + formulaire) ═══════════════ -->
-<div id="ecran-connexion">
+<section id="hero">
 
-  <section id="hero">
+  <div class="capa-soleil" data-profondeur="6" aria-hidden="true">
+    <div class="soleil-halo"></div>
+    <div class="soleil-corps"></div>
+  </div>
 
-    <!-- Soleil couchant sur l'Atlantique -->
-    <div class="capa-soleil" data-profondeur="6" aria-hidden="true">
-      <div class="soleil-halo"></div>
-      <div class="soleil-corps"></div>
-    </div>
+  <div class="capa-reseau" data-profondeur="16" aria-hidden="true">
+    <svg class="reseau-senegal" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+      <!-- POSITION ORIGINALE MAINTENUE (translate 560,30 scale 1.1) -->
+      <g transform="translate(560,30) scale(1.1)">
 
-    <!-- Réseau numérique reliant les grandes villes du Sénégal -->
-    <div class="capa-reseau" data-profondeur="16" aria-hidden="true">
-      <svg class="reseau-senegal" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
-        <g transform="translate(600,60) scale(0.92)">
+        <!-- Pointe de Kédougou légèrement allongée vers le bas (y=490 / 510) -->
+        <path class="carte-senegal" fill="none" d="
+          M 118,105 
+          C 125,75 145,35 185,25 
+          C 225,18 290,12 335,32 
+          C 365,45 420,105 450,165 
+          L 485,215 
+          L 470,250 
+          L 515,310 
+          L 510,360 
+          L 540,410 
+          L 535,490 
+          L 490,510 
+          L 440,480 
+          L 380,485 
+          C 350,478 305,482 235,480 
+          C 205,480 185,498 155,495 
+          C 115,490 85,505 75,475 
+          C 70,455 88,432 108,418 
+          L 218,418 
+          C 238,418 245,390 238,368 
+          C 232,350 215,348 198,348 
+          L 112,348 
+          C 98,348 92,320 85,295 
+          C 75,255 58,220 18,198 
+          C 8,192 12,178 28,172 
+          C 48,165 72,168 85,152 
+          C 102,132 110,120 118,105 
+          Z" />
 
-          <path class="carte-senegal" d="M55,50 C110,20 190,12 265,28 C335,15 400,38 425,85 C448,115 440,150 418,172 C438,195 430,225 405,248 C422,270 408,298 380,308 C385,332 365,355 335,360 C320,375 292,378 268,368 C242,378 208,373 190,355 C160,360 130,348 116,322 C90,318 70,298 74,272 C48,262 38,235 50,210 C22,198 15,168 32,148 C8,132 10,100 32,85 C18,72 20,52 40,40 C46,32 50,40 55,50 Z"/>
+        <!-- Label Gambie -->
+        <text class="etiquette-gambie" x="135" y="388">GAMBIE</text>
 
-          <g class="lignes-fibre">
-            <line class="ligne-fibre" x1="75" y1="45" x2="110" y2="155" style="animation-delay:.6s"/>
-            <line class="ligne-fibre" x1="110" y1="155" x2="30" y2="165" style="animation-delay:.8s"/>
-            <line class="ligne-fibre" x1="110" y1="155" x2="210" y2="140" style="animation-delay:1s"/>
-            <line class="ligne-fibre" x1="210" y1="140" x2="215" y2="230" style="animation-delay:1.2s"/>
-            <line class="ligne-fibre" x1="215" y1="230" x2="370" y2="210" style="animation-delay:1.4s"/>
-            <line class="ligne-fibre" x1="215" y1="230" x2="150" y2="330" style="animation-delay:1.6s"/>
-            <line class="ligne-fibre" x1="30" y1="165" x2="215" y2="230" style="animation-delay:1.8s"/>
-          </g>
-
-          <circle class="particule-fibre" r="3" style="offset-path: path('M30,165 C120,190 170,210 215,230'); animation-delay:0s"></circle>
-          <circle class="particule-fibre" r="3" style="offset-path: path('M215,230 C280,222 320,216 370,210'); animation-delay:2.6s"></circle>
-
-          <g class="noeuds-villes">
-            <g class="noeud" style="animation-delay:.2s">
-              <circle class="noeud-ville" cx="75" cy="45" r="4"/>
-              <text class="etiquette-ville" x="83" y="42">Saint-Louis</text>
-            </g>
-            <g class="noeud" style="animation-delay:.5s">
-              <circle class="noeud-ville" cx="110" cy="155" r="4"/>
-              <text class="etiquette-ville" x="118" y="152">Thiès</text>
-            </g>
-            <g class="noeud noeud-principal" style="animation-delay:.35s">
-              <circle class="noeud-ville" cx="30" cy="165" r="5.5"/>
-              <text class="etiquette-ville etiquette-principale" x="38" y="162">Dakar</text>
-            </g>
-            <g class="noeud" style="animation-delay:.65s">
-              <circle class="noeud-ville" cx="210" cy="140" r="4"/>
-              <text class="etiquette-ville" x="218" y="137">Touba</text>
-            </g>
-            <g class="noeud" style="animation-delay:.8s">
-              <circle class="noeud-ville" cx="215" cy="230" r="4"/>
-              <text class="etiquette-ville" x="223" y="227">Kaolack</text>
-            </g>
-            <g class="noeud" style="animation-delay:.95s">
-              <circle class="noeud-ville" cx="370" cy="210" r="4"/>
-              <text class="etiquette-ville" x="345" y="196">Tambacounda</text>
-            </g>
-            <g class="noeud" style="animation-delay:1.1s">
-              <circle class="noeud-ville" cx="150" cy="330" r="4"/>
-              <text class="etiquette-ville" x="158" y="327">Ziguinchor</text>
-            </g>
-          </g>
-
+        <!-- Lignes de réseau / fibre -->
+        <g class="lignes-fibre">
+          <line class="ligne-fibre" x1="128" y1="95" x2="108" y2="168" style="animation-delay:.6s"/>
+          <line class="ligne-fibre" x1="108" y1="168" x2="28" y2="178" style="animation-delay:.8s"/>
+          <line class="ligne-fibre" x1="108" y1="168" x2="218" y2="182" style="animation-delay:1s"/>
+          <line class="ligne-fibre" x1="218" y1="182" x2="182" y2="282" style="animation-delay:1.2s"/>
+          <line class="ligne-fibre" x1="182" y1="282" x2="368" y2="342" style="animation-delay:1.4s"/>
+          <line class="ligne-fibre" x1="182" y1="282" x2="128" y2="462" style="animation-delay:1.6s"/>
+          <line class="ligne-fibre" x1="28" y1="178" x2="182" y2="282" style="animation-delay:1.8s"/>
+          <line class="ligne-fibre" x1="368" y1="342" x2="495" y2="455" style="animation-delay:2s"/>
         </g>
-      </svg>
-    </div>
 
-    <!-- Oiseaux -->
-    <div class="capa-oiseaux" aria-hidden="true">
-      <div class="oiseau">
-        <svg viewBox="0 0 34 14"><path d="M2,10 Q9,0 17,9 Q25,0 32,10" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/></svg>
-      </div>
-      <div class="oiseau oiseau--2">
-        <svg viewBox="0 0 34 14"><path d="M2,10 Q9,0 17,9 Q25,0 32,10" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/></svg>
-      </div>
-      <div class="oiseau oiseau--3">
-        <svg viewBox="0 0 34 14"><path d="M2,10 Q9,0 17,9 Q25,0 32,10" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/></svg>
-      </div>
-    </div>
+        <!-- Particules sur le réseau -->
+        <circle class="particule-fibre" r="3" style="offset-path: path('M28,178 C98,222 138,252 182,282'); animation-delay:0s"></circle>
+        <circle class="particule-fibre" r="3" style="offset-path: path('M182,282 C248,302 308,322 368,342'); animation-delay:2.6s"></circle>
 
-    <!-- Silhouette de Dakar : Monument de la Renaissance, Grande Mosquée, Phare des Mamelles, Plateau, baobab -->
-    <div class="capa-skyline" data-profondeur="7" aria-hidden="true">
-      <svg class="skyline-dakar" viewBox="0 0 1200 260" preserveAspectRatio="none">
-        <g fill="rgba(6,20,33,.6)">
-          <!-- Baobab -->
-          <rect x="491" y="170" width="10" height="50"/>
-          <ellipse cx="480" cy="165" rx="20" ry="14"/>
-          <ellipse cx="500" cy="157" rx="24" ry="16"/>
-          <ellipse cx="514" cy="168" rx="17" ry="13"/>
-
-          <!-- Immeubles du Plateau -->
-          <rect x="524" y="150" width="26" height="70"/>
-          <rect x="556" y="125" width="26" height="95"/>
-          <rect x="588" y="165" width="26" height="55"/>
-          <rect x="618" y="140" width="26" height="80"/>
-
-          <!-- Monument de la Renaissance Africaine (silhouette très discrète) -->
-          <rect x="672" y="205" width="56" height="15"/>
-          <path d="M690,205 L690,120 Q693,90 708,78 Q722,68 732,76 L728,90 Q716,98 712,118 L712,205 Z"/>
-
-          <!-- Immeubles du Plateau (suite) -->
-          <rect x="772" y="120" width="26" height="100"/>
-          <rect x="804" y="155" width="26" height="65"/>
-          <rect x="834" y="135" width="26" height="85"/>
-          <rect x="864" y="170" width="26" height="50"/>
-
-          <!-- Grande Mosquée -->
-          <rect x="905" y="190" width="50" height="30"/>
-          <ellipse cx="930" cy="185" rx="26" ry="16"/>
-          <rect x="965" y="140" width="10" height="80"/>
-          <circle cx="970" cy="136" r="6"/>
-
-          <!-- Immeubles du Plateau (fin) -->
-          <rect x="982" y="145" width="26" height="75"/>
-          <rect x="1012" y="110" width="26" height="110"/>
-          <rect x="1044" y="160" width="26" height="60"/>
-          <rect x="1074" y="130" width="26" height="90"/>
-
-          <!-- Phare des Mamelles -->
-          <rect x="1108" y="150" width="14" height="70"/>
-          <polygon points="1105,150 1125,150 1119,135 1111,135"/>
+        <!-- Villes principales -->
+        <g class="noeuds-villes">
+          <g class="noeud" style="animation-delay:.2s"><circle class="noeud-ville" cx="128" cy="95" r="4"/><text class="etiquette-ville" x="136" y="92">Saint-Louis</text></g>
+          <g class="noeud" style="animation-delay:.5s"><circle class="noeud-ville" cx="108" cy="168" r="4"/><text class="etiquette-ville" x="116" y="165">Thiès</text></g>
+          <g class="noeud noeud-principal" style="animation-delay:.35s"><circle class="noeud-ville" cx="28" cy="178" r="5.5"/><text class="etiquette-ville etiquette-principale" x="36" y="175">Dakar</text></g>
+          <g class="noeud" style="animation-delay:.65s"><circle class="noeud-ville" cx="218" cy="182" r="4"/><text class="etiquette-ville" x="226" y="179">Touba</text></g>
+          <g class="noeud" style="animation-delay:.8s"><circle class="noeud-ville" cx="182" cy="282" r="4"/><text class="etiquette-ville" x="190" y="279">Kaolack</text></g>
+          <g class="noeud" style="animation-delay:.95s"><circle class="noeud-ville" cx="368" cy="342" r="4"/><text class="etiquette-ville" x="340" y="328">Tambacounda</text></g>
+          <g class="noeud" style="animation-delay:1.1s"><circle class="noeud-ville" cx="128" cy="462" r="4"/><text class="etiquette-ville" x="136" y="459">Ziguinchor</text></g>
+          <!-- Nœud Kédougou légèrement re-centré dans la pointe ajustée -->
+          <g class="noeud" style="animation-delay:1.3s"><circle class="noeud-ville" cx="495" cy="455" r="4"/><text class="etiquette-ville" x="425" y="460">Kédougou</text></g>
         </g>
-        <circle class="lumiere-phare" cx="1115" cy="138" r="4" fill="var(--jaune-or)"/>
-      </svg>
+
+      </g>
+    </svg>
+  </div>
+
+  <div class="capa-oiseaux" aria-hidden="true">
+    <div class="oiseau"><svg viewBox="0 0 34 14"><path d="M2,10 Q9,0 17,9 Q25,0 32,10" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="oiseau oiseau--2"><svg viewBox="0 0 34 14"><path d="M2,10 Q9,0 17,9 Q25,0 32,10" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="oiseau oiseau--3"><svg viewBox="0 0 34 14"><path d="M2,10 Q9,0 17,9 Q25,0 32,10" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/></svg></div>
+  </div>
+
+  <div class="capa-skyline" data-profondeur="7" aria-hidden="true">
+    <svg class="skyline-dakar" viewBox="0 0 1200 260" preserveAspectRatio="none">
+      <g fill="rgba(6,20,33,.6)">
+        <rect x="491" y="170" width="10" height="50"/>
+        <ellipse cx="480" cy="165" rx="20" ry="14"/><ellipse cx="500" cy="157" rx="24" ry="16"/><ellipse cx="514" cy="168" rx="17" ry="13"/>
+        <rect x="524" y="150" width="26" height="70"/><rect x="556" y="125" width="26" height="95"/>
+        <rect x="588" y="165" width="26" height="55"/><rect x="618" y="140" width="26" height="80"/>
+        <rect x="672" y="205" width="56" height="15"/>
+        <path d="M690,205 L690,120 Q693,90 708,78 Q722,68 732,76 L728,90 Q716,98 712,118 L712,205 Z"/>
+        <rect x="772" y="120" width="26" height="100"/><rect x="804" y="155" width="26" height="65"/>
+        <rect x="834" y="135" width="26" height="85"/><rect x="864" y="170" width="26" height="50"/>
+        <rect x="905" y="190" width="50" height="30"/><ellipse cx="930" cy="185" rx="26" ry="16"/>
+        <rect x="965" y="140" width="10" height="80"/><circle cx="970" cy="136" r="6"/>
+        <rect x="982" y="145" width="26" height="75"/><rect x="1012" y="110" width="26" height="110"/>
+        <rect x="1044" y="160" width="26" height="60"/><rect x="1074" y="130" width="26" height="90"/>
+        <rect x="1108" y="150" width="14" height="70"/><polygon points="1105,150 1125,150 1119,135 1111,135"/>
+      </g>
+      <circle class="lumiere-phare" cx="1115" cy="138" r="4" fill="var(--jaune-or)"/>
+    </svg>
+  </div>
+
+  <div class="capa-ocean" data-profondeur="4" aria-hidden="true">
+    <div class="vague vague--arriere"><svg viewBox="0 0 2400 220" preserveAspectRatio="none"><path fill="var(--turquoise)" fill-opacity=".45" d="M0,110 C75,90 150,90 225,110 C300,130 375,130 450,110 C525,90 600,90 675,110 C750,130 825,130 900,110 C975,90 1050,90 1125,110 C1200,130 1275,130 1350,110 C1425,90 1500,90 1575,110 C1650,130 1725,130 1800,110 C1875,90 1950,90 2025,110 C2100,130 2175,130 2250,110 C2325,90 2400,90 2400,110 L2400,220 L0,220 Z"/></svg></div>
+    <div class="vague vague--milieu"><svg viewBox="0 0 2400 220" preserveAspectRatio="none"><path fill="var(--bleu-atlantique)" fill-opacity=".7" d="M0,110 C75,90 150,90 225,110 C300,130 375,130 450,110 C525,90 600,90 675,110 C750,130 825,130 900,110 C975,90 1050,90 1125,110 C1200,130 1275,130 1350,110 C1425,90 1500,90 1575,110 C1650,130 1725,130 1800,110 C1875,90 1950,90 2025,110 C2100,130 2175,130 2250,110 C2325,90 2400,90 2400,110 L2400,220 L0,220 Z"/></svg></div>
+    <div class="vague vague--avant"><svg viewBox="0 0 2400 220" preserveAspectRatio="none"><path fill="var(--eau-profonde)" fill-opacity=".92" d="M0,110 C75,90 150,90 225,110 C300,130 375,130 450,110 C525,90 600,90 675,110 C750,130 825,130 900,110 C975,90 1050,90 1125,110 C1200,130 1275,130 1350,110 C1425,90 1500,90 1575,110 C1650,130 1725,130 1800,110 C1875,90 1950,90 2025,110 C2100,130 2175,130 2250,110 C2325,90 2400,90 2400,110 L2400,220 L0,220 Z"/></svg></div>
+  </div>
+
+  <div class="capa-pirogues" data-profondeur="11" aria-hidden="true">
+    <svg class="pirogues-senegal" viewBox="0 0 1200 160" preserveAspectRatio="none">
+      <g class="barque" style="animation-delay:0s"><path d="M40,120 Q95,85 220,98 Q245,110 220,122 Q130,132 40,120 Z" fill="var(--vert-senegal)"/><rect x="65" y="102" width="140" height="5" fill="var(--jaune-or)"/><rect x="65" y="110" width="140" height="4" fill="var(--rouge-senegal)"/><rect x="120" y="60" width="4" height="38" fill="#3a2e1a"/></g>
+      <g class="barque" style="animation-delay:1s"><path d="M300,124 Q350,90 470,100 Q492,112 470,124 Q385,134 300,124 Z" fill="var(--bleu-atlantique)"/><rect x="322" y="106" width="130" height="4" fill="var(--jaune-or)"/><rect x="322" y="113" width="130" height="4" fill="var(--sable)"/></g>
+      <g class="barque" style="animation-delay:2s"><path d="M630,132 Q660,112 720,118 Q734,126 720,133 Q675,140 630,132 Z" fill="var(--corail)"/><rect x="644" y="120" width="66" height="3" fill="var(--jaune-or)"/></g>
+      <g class="barque" style="animation-delay:.5s"><path d="M910,126 Q952,96 1050,105 Q1068,116 1050,127 Q980,136 910,126 Z" fill="var(--vert-senegal)"/><rect x="928" y="108" width="105" height="4" fill="var(--sable)"/><rect x="928" y="115" width="105" height="4" fill="var(--bleu-atlantique)"/></g>
+    </svg>
+  </div>
+
+  <div class="voile-sombre"></div>
+  <div class="motif-wax motif-wax--haut"></div>
+
+  <header class="entete-hero">
+    <div class="logo-hero">Sénégal <span>Connect</span></div>
+    <nav>
+      <a href="connexion.html">Se connecter</a>
+      <a href="inscription.html">Créer un compte</a>
+    </nav>
+  </header>
+
+  <div class="ligne-hero">
+    <div class="contenu-hero">
+      <p class="oeillet-hero anim">🇸🇳 Plateforme numérique nationale</p>
+      <h1 class="anim">Votre opérateur de confiance, <em>partout</em> au Sénégal</h1>
+      <p class="sous-titre-hero anim">Gérez votre ligne, vos factures et votre forfait, et échangez en temps réel avec notre support — chat, fichiers et appels vidéo, directement depuis votre espace.</p>
+      <div class="boutons-hero anim">
+        <a href="connexion.html" class="bouton-plein">Se connecter</a>
+        <a href="inscription.html" class="bouton-contour">Créer un compte</a>
+      </div>
+      <ul class="services-rapides anim">
+        <li><span class="icone-service">📞</span>Assistance 24h/24</li>
+        <li><span class="icone-service">🎥</span>Appels vidéo</li>
+        <li><span class="icone-service">💬</span>Messagerie</li>
+        <li><span class="icone-service">⚙️</span>Gestion de compte</li>
+      </ul>
     </div>
 
-    <!-- Océan animé -->
-    <div class="capa-ocean" data-profondeur="4" aria-hidden="true">
-      <div class="vague vague--arriere">
-        <svg viewBox="0 0 2400 220" preserveAspectRatio="none">
-          <path fill="var(--turquoise)" fill-opacity=".45" d="M0,110 C75,90 150,90 225,110 C300,130 375,130 450,110 C525,90 600,90 675,110 C750,130 825,130 900,110 C975,90 1050,90 1125,110 C1200,130 1275,130 1350,110 C1425,90 1500,90 1575,110 C1650,130 1725,130 1800,110 C1875,90 1950,90 2025,110 C2100,130 2175,130 2250,110 C2325,90 2400,90 2400,110 L2400,220 L0,220 Z"/>
-        </svg>
-      </div>
-      <div class="vague vague--milieu">
-        <svg viewBox="0 0 2400 220" preserveAspectRatio="none">
-          <path fill="var(--bleu-atlantique)" fill-opacity=".7" d="M0,110 C75,90 150,90 225,110 C300,130 375,130 450,110 C525,90 600,90 675,110 C750,130 825,130 900,110 C975,90 1050,90 1125,110 C1200,130 1275,130 1350,110 C1425,90 1500,90 1575,110 C1650,130 1725,130 1800,110 C1875,90 1950,90 2025,110 C2100,130 2175,130 2250,110 C2325,90 2400,90 2400,110 L2400,220 L0,220 Z"/>
-        </svg>
-      </div>
-      <div class="vague vague--avant">
-        <svg viewBox="0 0 2400 220" preserveAspectRatio="none">
-          <path fill="var(--eau-profonde)" fill-opacity=".92" d="M0,110 C75,90 150,90 225,110 C300,130 375,130 450,110 C525,90 600,90 675,110 C750,130 825,130 900,110 C975,90 1050,90 1125,110 C1200,130 1275,130 1350,110 C1425,90 1500,90 1575,110 C1650,130 1725,130 1800,110 C1875,90 1950,90 2025,110 C2100,130 2175,130 2250,110 C2325,90 2400,90 2400,110 L2400,220 L0,220 Z"/>
-        </svg>
-      </div>
-    </div>
-
-    <!-- Pirogues traditionnelles colorées -->
-    <div class="capa-pirogues" data-profondeur="11" aria-hidden="true">
-      <svg class="pirogues-senegal" viewBox="0 0 1200 160" preserveAspectRatio="none">
-        <g class="barque" style="animation-delay:0s">
-          <path d="M40,120 Q95,85 220,98 Q245,110 220,122 Q130,132 40,120 Z" fill="var(--vert-senegal)"/>
-          <rect x="65" y="102" width="140" height="5" fill="var(--jaune-or)"/>
-          <rect x="65" y="110" width="140" height="4" fill="var(--rouge-senegal)"/>
-          <rect x="120" y="60" width="4" height="38" fill="#3a2e1a"/>
-        </g>
-        <g class="barque" style="animation-delay:1s">
-          <path d="M300,124 Q350,90 470,100 Q492,112 470,124 Q385,134 300,124 Z" fill="var(--bleu-atlantique)"/>
-          <rect x="322" y="106" width="130" height="4" fill="var(--jaune-or)"/>
-          <rect x="322" y="113" width="130" height="4" fill="var(--sable)"/>
-        </g>
-        <g class="barque" style="animation-delay:2s">
-          <path d="M630,132 Q660,112 720,118 Q734,126 720,133 Q675,140 630,132 Z" fill="var(--corail)"/>
-          <rect x="644" y="120" width="66" height="3" fill="var(--jaune-or)"/>
-        </g>
-        <g class="barque" style="animation-delay:.5s">
-          <path d="M910,126 Q952,96 1050,105 Q1068,116 1050,127 Q980,136 910,126 Z" fill="var(--vert-senegal)"/>
-          <rect x="928" y="108" width="105" height="4" fill="var(--sable)"/>
-          <rect x="928" y="115" width="105" height="4" fill="var(--bleu-atlantique)"/>
-        </g>
-      </svg>
-    </div>
-
-    <div class="voile-sombre"></div>
-    <div class="motif-wax motif-wax--haut"></div>
-
-    <header class="entete-hero">
-      <div class="logo-hero">Sénégal <span>Connect</span></div>
-      <nav>
-        <a href="#section-connexion">Se connecter</a>
-        <a href="/inscription.html">Créer un compte</a>
-      </nav>
-    </header>
-
-    <div class="ligne-hero">
-      <div class="contenu-hero">
-        <p class="oeillet-hero anim">🇸🇳 Plateforme numérique nationale</p>
-        <h1 class="anim">Votre opérateur de confiance, <em>partout</em> au Sénégal</h1>
-        <p class="sous-titre-hero anim">Gérez votre ligne, vos factures et votre forfait, et échangez en temps réel avec notre support — chat, fichiers et appels vidéo, directement depuis votre espace.</p>
-        <div class="boutons-hero anim">
-          <a href="#section-connexion" class="bouton-plein">Se connecter</a>
-          <a href="/inscription.html" class="bouton-contour">Créer un compte</a>
-        </div>
-        <ul class="services-rapides anim">
-          <li><span class="icone-service">📞</span>Assistance 24h/24</li>
-          <li><span class="icone-service">🎥</span>Appels vidéo</li>
-          <li><span class="icone-service">💬</span>Messagerie</li>
-          <li><span class="icone-service">⚙️</span>Gestion de compte</li>
-        </ul>
-      </div>
-
-      <div class="capa-carte-flottante" data-profondeur="-6">
-        <aside class="carte-etat">
-          <div class="carte-etat-entete"><span class="point-actif"></span>Réseau national</div>
-          <div class="stat-ligne"><span>📡 Disponibilité</span><strong data-compteur="99.98" data-decimales="2">0</strong></div>
-          <div class="stat-ligne"><span>👥 Utilisateurs actifs</span><strong data-compteur="2350000" data-decimales="0">0</strong></div>
-          <div class="stat-ligne"><span>💬 Support</span><strong>24h/24</strong></div>
-        </aside>
-      </div>
-    </div>
-
-    <p class="indicateur-scroll anim">↓ Accéder à mon espace</p>
-  </section>
-
-  <section id="section-connexion">
-    <div class="motif-wax motif-wax--bas"></div>
-    <div class="carte-connexion">
-      <h2>🇸🇳 Bienvenue</h2>
-      <p class="sous-titre">Connectez-vous à votre espace Sénégal Connect</p>
-
-      <div class="champ">
-        <label>✉️ Email</label>
-        <input id="champ-email" type="email" placeholder="vous@exemple.sn" autocomplete="username">
-      </div>
-      <div class="champ">
-        <label>🔒 Mot de passe</label>
-        <input id="champ-mdp" type="password" placeholder="••••••••" autocomplete="current-password">
-      </div>
-      <button id="bouton-connexion" class="bouton-connexion-form">Se connecter</button>
-      <p id="erreur-connexion" class="message-erreur"></p>
-
-      <div class="separateur-liens">
-        <a href="/mot-de-passe-oublie.html">Mot de passe oublié ?</a>
-        <a href="/inscription.html">Créer un compte →</a>
-      </div>
-
-      <p class="connexion-securisee">🔒 Connexion sécurisée</p>
-    </div>
-  </section>
-
-</div>
-
-<!-- ═══════════════ APP CHAT (fonctionnalité inchangée) ═══════════════ -->
-<div id="ecran-app" class="cache">
-  <aside id="colonne-tickets">
-    <h2>Tickets</h2>
-    <ul id="liste-tickets"></ul>
-  </aside>
-
-  <main id="colonne-chat">
-    <div id="entete-chat">
-      <span id="titre-ticket">Sélectionnez un ticket</span>
-      <div>
-        <button id="bouton-appel-audio">🎧 Audio</button>
-        <button id="bouton-appel-video">🎥 Vidéo</button>
-      </div>
-    </div>
-
-    <div id="zone-messages"></div>
-    <p id="indicateur-frappe" class="cache"></p>
-
-    <div id="zone-saisie">
-      <button id="bouton-emoji">😀</button>
-      <input id="champ-message" type="text" placeholder="Écrire un message...">
-      <input id="champ-fichier" type="file" class="cache">
-      <button id="bouton-fichier">📎</button>
-      <button id="bouton-envoyer">Envoyer</button>
-    </div>
-  </main>
-
-  <div id="modale-appel" class="cache">
-    <video id="video-distante" autoplay></video>
-    <video id="video-locale" autoplay muted></video>
-    <div id="chronometre-appel">00:00</div>
-    <div id="controles-appel">
-      <button id="bouton-micro">🔇</button>
-      <button id="bouton-camera">📷</button>
-      <button id="bouton-partage-ecran">🖥️</button>
-      <button id="bouton-raccrocher">📴</button>
+    <div class="capa-carte-flottante" data-profondeur="-6">
+      <aside class="carte-etat">
+        <div class="carte-etat-entete"><span class="point-actif"></span>Réseau national</div>
+        <div class="stat-ligne"><span>📡 Disponibilité</span><strong data-compteur="99.98" data-decimales="2">0</strong></div>
+        <div class="stat-ligne"><span>👥 Utilisateurs actifs</span><strong data-compteur="2350000" data-decimales="0">0</strong></div>
+        <div class="stat-ligne"><span>💬 Support</span><strong>24h/24</strong></div>
+      </aside>
     </div>
   </div>
 
-  <div id="sonnerie-appel" class="cache">
-    <p id="texte-appel-entrant"></p>
-    <button id="bouton-accepter-appel">Accepter</button>
-    <button id="bouton-refuser-appel">Refuser</button>
-  </div>
-</div>
+  <p class="indicateur-scroll anim">↓ Bienvenue sur Sénégal Connect</p>
+</section>
 
 <script>
 (function () {
   var reduitMouvement = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  // Effet de parallax léger au mouvement de la souris dans le hero
   var hero = document.getElementById('hero');
   if (hero && !reduitMouvement) {
     var couches = hero.querySelectorAll('[data-profondeur]');
@@ -714,22 +407,16 @@ header.entete-hero nav a:hover { border-color: var(--jaune-or); }
     });
   }
 
-  // Compteurs animés de la carte "Réseau national"
   var compteurs = document.querySelectorAll('[data-compteur]');
   compteurs.forEach(function (el) {
     var cible = parseFloat(el.getAttribute('data-compteur'));
     var decimales = parseInt(el.getAttribute('data-decimales') || '0', 10);
-    if (reduitMouvement) {
-      el.textContent = formaterNombre(cible, decimales);
-      return;
-    }
-    var debut = null;
-    var duree = 1400;
+    if (reduitMouvement) { el.textContent = formaterNombre(cible, decimales); return; }
+    var debut = null, duree = 1400;
     function animer(horodatage) {
       if (!debut) debut = horodatage;
       var progression = Math.min((horodatage - debut) / duree, 1);
-      var valeur = cible * progression;
-      el.textContent = formaterNombre(valeur, decimales);
+      el.textContent = formaterNombre(cible * progression, decimales);
       if (progression < 1) requestAnimationFrame(animer);
     }
     requestAnimationFrame(animer);
@@ -741,10 +428,5 @@ header.entete-hero nav a:hover { border-color: var(--jaune-or); }
   }
 })();
 </script>
-
-<script src="/socket.io/socket.io.js"></script>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="/js/app.js"></script>
-<script src="/js/webrtc.js"></script>
 </body>
 </html>

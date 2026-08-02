@@ -3,69 +3,89 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sénégal Connect — Réinitialiser le mot de passe</title>
-<style>
-  :root { --vert: #00853f; --vert-fonce: #006b32; --bordure: #e0e4e8; }
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-  body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, var(--vert-fonce), var(--vert)); padding: 20px; }
-  .carte { background: white; padding: 36px; border-radius: 12px; width: 100%; max-width: 400px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-  .carte h1 { font-size: 20px; margin-bottom: 22px; }
-  .champ { margin-bottom: 14px; }
-  .champ label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .champ input { width: 100%; padding: 10px 12px; border: 1px solid var(--bordure); border-radius: 8px; font-size: 14px; }
-  .bouton { width: 100%; padding: 11px; background: var(--vert); color: white; border: none; border-radius: 8px;
-    font-size: 14px; font-weight: 600; cursor: pointer; }
-  .bouton:hover { background: var(--vert-fonce); }
-  .message-erreur { color: #d32f2f; font-size: 13px; margin-top: 10px; }
-  .message-succes { color: var(--vert); font-size: 13px; margin-top: 10px; }
-</style>
+<title>Réinitialiser le mot de passe — Sénégal Connect</title>
+<link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
 
-<div class="carte">
-  <h1>Nouveau mot de passe</h1>
+<header class="entete-simple">
+  <a href="index.html" class="logo-hero">Sénégal <span>Connect</span></a>
+  <nav><a href="connexion.html">Se connecter</a></nav>
+</header>
 
-  <form id="formulaire-reinit">
-    <input type="hidden" name="token" id="champ-token">
-    <div class="champ"><label>Nouveau mot de passe</label><input name="nouveau_mot_de_passe" type="password" minlength="6" required></div>
-    <button type="submit" class="bouton">Réinitialiser</button>
-    <p class="message-erreur" id="erreur"></p>
-    <p class="message-succes" id="succes"></p>
-  </form>
-</div>
+<section class="page-formulaire">
+  <div class="motif-wax motif-wax--bas"></div>
+  <div class="carte-formulaire">
+    <h2>Nouveau mot de passe</h2>
+    <p class="sous-titre">Choisissez un nouveau mot de passe pour votre compte</p>
+
+    <form id="formulaire-reinit">
+      <div class="champ">
+        <label>🔒 Nouveau mot de passe</label>
+        <input id="champ-mdp" type="password" placeholder="Au moins 6 caractères" required minlength="6">
+      </div>
+      <div class="champ">
+        <label>🔒 Confirmer le mot de passe</label>
+        <input id="champ-mdp-confirmation" type="password" placeholder="••••••••" required minlength="6">
+      </div>
+      <button type="submit" id="bouton-reinit" class="bouton-form">Réinitialiser</button>
+      <p class="message-erreur" id="erreur"></p>
+    </form>
+
+    <div class="message-info cache" id="info">
+      <p>✅ Mot de passe mis à jour. Redirection vers la connexion...</p>
+    </div>
+  </div>
+</section>
 
 <script>
-const parametres = new URLSearchParams(window.location.search);
-document.getElementById('champ-token').value = parametres.get('token') || '';
-
-document.getElementById('formulaire-reinit').addEventListener('submit', async (e) => {
-  e.preventDefault();
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
   const erreurEl = document.getElementById('erreur');
-  const succesEl = document.getElementById('succes');
-  erreurEl.textContent = ''; succesEl.textContent = '';
 
-  const donnees = Object.fromEntries(new FormData(e.target));
-
-  try {
-    const reponse = await fetch('/api/auth/reinitialiser-mot-de-passe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(donnees),
-    });
-    const corps = await reponse.json();
-
-    if (reponse.ok) {
-      succesEl.textContent = 'Mot de passe réinitialisé ! Redirection...';
-      setTimeout(() => (window.location.href = '/index.html'), 1200);
-    } else {
-      erreurEl.textContent = corps.message || corps.erreurs?.[0]?.message || 'Erreur';
-    }
-  } catch (err) {
-    erreurEl.textContent = 'Impossible de contacter le serveur';
+  if (!token) {
+    erreurEl.textContent = 'Lien invalide ou incomplet — demandez un nouveau lien.';
+    document.getElementById('formulaire-reinit').querySelector('button').disabled = true;
   }
-});
+
+  document.getElementById('formulaire-reinit').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    erreurEl.textContent = '';
+
+    const motDePasse = document.getElementById('champ-mdp').value;
+    const confirmation = document.getElementById('champ-mdp-confirmation').value;
+    if (motDePasse !== confirmation) {
+      erreurEl.textContent = 'Les mots de passe ne correspondent pas';
+      return;
+    }
+
+    const bouton = document.getElementById('bouton-reinit');
+    bouton.disabled = true;
+    bouton.textContent = 'Réinitialisation...';
+
+    try {
+      const reponse = await fetch('/api/auth/reinitialiser-mot-de-passe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, mot_de_passe: motDePasse }),
+      });
+      const corps = await reponse.json();
+
+      if (reponse.ok) {
+        document.getElementById('formulaire-reinit').classList.add('cache');
+        document.getElementById('info').classList.remove('cache');
+        setTimeout(() => { window.location.href = 'connexion.html'; }, 2000);
+      } else {
+        erreurEl.textContent = corps.message || 'Lien expiré ou invalide';
+        bouton.disabled = false;
+        bouton.textContent = 'Réinitialiser';
+      }
+    } catch (err) {
+      erreurEl.textContent = 'Impossible de contacter le serveur';
+      bouton.disabled = false;
+      bouton.textContent = 'Réinitialiser';
+    }
+  });
 </script>
 </body>
 </html>

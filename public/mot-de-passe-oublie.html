@@ -3,55 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sénégal Connect — Mot de passe oublié</title>
-<style>
-  :root { --vert: #00853f; --vert-fonce: #006b32; --bordure: #e0e4e8; }
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-  body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, var(--vert-fonce), var(--vert)); padding: 20px; }
-  .carte { background: white; padding: 36px; border-radius: 12px; width: 100%; max-width: 400px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-  .carte h1 { font-size: 20px; margin-bottom: 4px; }
-  .carte p.sous-titre { color: #777; font-size: 13px; margin-bottom: 22px; }
-  .champ { margin-bottom: 14px; }
-  .champ label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .champ input { width: 100%; padding: 10px 12px; border: 1px solid var(--bordure); border-radius: 8px; font-size: 14px; }
-  .bouton { width: 100%; padding: 11px; background: var(--vert); color: white; border: none; border-radius: 8px;
-    font-size: 14px; font-weight: 600; cursor: pointer; }
-  .bouton:hover { background: var(--vert-fonce); }
-  .message-info { background: #e6f7ed; color: var(--vert-fonce); padding: 12px; border-radius: 8px; font-size: 13px; margin-top: 14px; display: none; }
-  .message-erreur { color: #d32f2f; font-size: 13px; margin-top: 10px; }
-  .lien-bas { text-align: center; margin-top: 18px; font-size: 13px; }
-  .lien-bas a { color: var(--vert-fonce); text-decoration: none; font-weight: 600; }
-  .lien-demo { display: block; margin-top: 10px; font-size: 12px; word-break: break-all; }
-</style>
+<title>Mot de passe oublié — Sénégal Connect</title>
+<link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
 
-<div class="carte">
-  <h1>Mot de passe oublié</h1>
-  <p class="sous-titre">Entrez votre email pour recevoir un lien de réinitialisation</p>
+<header class="entete-simple">
+  <a href="index.html" class="logo-hero">Sénégal <span>Connect</span></a>
+  <nav><a href="inscription.html">Créer un compte</a></nav>
+</header>
 
-  <form id="formulaire-oubli">
-    <div class="champ"><label>Email</label><input name="email" type="email" required></div>
-    <button type="submit" class="bouton">Envoyer le lien</button>
-    <p class="message-erreur" id="erreur"></p>
-  </form>
+<section class="page-formulaire">
+  <div class="motif-wax motif-wax--bas"></div>
+  <div class="carte-formulaire">
+    <h2>Mot de passe oublié</h2>
+    <p class="sous-titre">Entrez votre email pour recevoir un lien de réinitialisation</p>
 
-  <div class="message-info" id="info">
-    <p id="texte-info"></p>
-    <a class="lien-demo" id="lien-demo" href="#"></a>
+    <form id="formulaire-oubli">
+      <div class="champ">
+        <label>✉️ Email</label>
+        <input name="email" type="email" placeholder="vous@exemple.sn" required>
+      </div>
+      <button type="submit" id="bouton-envoyer" class="bouton-form">Envoyer le lien</button>
+      <p class="message-erreur" id="erreur"></p>
+    </form>
+
+    <div class="message-info cache" id="info">
+      <p id="texte-info"></p>
+      <a class="lien-demo" id="lien-demo" href="#"></a>
+    </div>
+
+    <div class="separateur-liens">
+      <a href="connexion.html">← Retour à la connexion</a>
+      <a href="inscription.html">Créer un compte</a>
+    </div>
+    <p class="connexion-securisee">🔒 Lien valable un temps limité</p>
   </div>
-
-  <p class="lien-bas"><a href="/index.html">Retour à la connexion</a></p>
-</div>
+</section>
 
 <script>
 document.getElementById('formulaire-oubli').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const bouton = document.getElementById('bouton-envoyer');
   const erreurEl = document.getElementById('erreur');
   const infoEl = document.getElementById('info');
   erreurEl.textContent = '';
+  bouton.disabled = true;
+  bouton.textContent = 'Envoi...';
 
   const donnees = Object.fromEntries(new FormData(e.target));
 
@@ -65,10 +63,10 @@ document.getElementById('formulaire-oubli').addEventListener('submit', async (e)
 
     if (reponse.ok) {
       document.getElementById('texte-info').textContent = corps.message;
-      infoEl.style.display = 'block';
+      infoEl.classList.remove('cache');
 
       if (corps.token_demo) {
-        const lien = `/reinitialiser-mot-de-passe.html?token=${corps.token_demo}`;
+        const lien = `reinitialiser-mot-de-passe.html?token=${corps.token_demo}`;
         const lienEl = document.getElementById('lien-demo');
         lienEl.href = lien;
         lienEl.textContent = `Lien de démo (${corps.expire_dans_minutes} min) : cliquer ici`;
@@ -78,6 +76,9 @@ document.getElementById('formulaire-oubli').addEventListener('submit', async (e)
     }
   } catch (err) {
     erreurEl.textContent = 'Impossible de contacter le serveur';
+  } finally {
+    bouton.disabled = false;
+    bouton.textContent = 'Envoyer le lien';
   }
 });
 </script>

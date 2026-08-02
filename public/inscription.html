@@ -19,31 +19,39 @@
     <h2>🇸🇳 Créer un compte</h2>
     <p class="sous-titre">Rejoignez Sénégal Connect en quelques secondes</p>
 
-    <form id="form-inscription">
-      <div class="champ">
-        <label>Prénom</label>
-        <input id="champ-prenom" type="text" placeholder="Aminata" required>
-      </div>
-      <div class="champ">
-        <label>Nom</label>
-        <input id="champ-nom" type="text" placeholder="Diallo" required>
-      </div>
-      <div class="champ">
-        <label>✉️ Email</label>
-        <input id="champ-email" type="email" placeholder="vous@exemple.sn" autocomplete="username" required>
-      </div>
-      <div class="champ">
-        <label>🔒 Mot de passe</label>
-        <input id="champ-mdp" type="password" placeholder="Au moins 6 caractères" autocomplete="new-password" required minlength="6">
-      </div>
-      <div class="champ">
-        <label>🔒 Confirmer le mot de passe</label>
-        <input id="champ-mdp-confirmation" type="password" placeholder="••••••••" autocomplete="new-password" required minlength="6">
-      </div>
+  <form id="form-inscription">
+    <div class="champ">
+      <label>Prénom</label>
+      <input id="champ-prenom" type="text" placeholder="Aminata" required>
+    </div>
+    <div class="champ">
+      <label>Nom</label>
+      <input id="champ-nom" type="text" placeholder="Diallo" required>
+    </div>
+    <div class="champ">
+      <label>✉️ Email</label>
+      <input id="champ-email" type="email" placeholder="vous@exemple.sn" autocomplete="username" required>
+    </div>
+    <div class="champ">
+      <label>Type de compte</label>
+      <select id="champ-role" required>
+        <option value="client">Client (abonné)</option>
+        <option value="agent">Agent support</option>
+        <option value="admin">Administrateur</option>
+      </select>
+    </div>
+  <div class="champ">
+    <label>🔒 Mot de passe</label>
+    <input id="champ-mdp" type="password" placeholder="Au moins 6 caractères" autocomplete="new-password" required minlength="6">
+  </div>
+  <div class="champ">
+    <label>🔒 Confirmer le mot de passe</label>
+    <input id="champ-mdp-confirmation" type="password" placeholder="••••••••" autocomplete="new-password" required minlength="6">
+  </div>
 
-      <button id="bouton-inscription" type="submit" class="bouton-form">Créer mon compte</button>
-      <p id="erreur-inscription" class="message-erreur"></p>
-    </form>
+  <button id="bouton-inscription" type="submit" class="bouton-form">Créer mon compte</button>
+  <p id="erreur-inscription" class="message-erreur"></p>
+  </form>
 
     <div class="separateur-liens">
       <a href="index.html">← Retour à l'accueil</a>
@@ -79,7 +87,7 @@
           prenom: document.getElementById('champ-prenom').value,
           email: document.getElementById('champ-email').value,
           mot_de_passe: motDePasse,
-          role: 'client', // inscription publique = toujours un compte client (abonné)
+          role: document.getElementById('champ-role').value,
         }),
       });
       const donnees = await reponse.json();

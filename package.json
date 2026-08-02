@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest --silent",
+    "test": "jest --silent --forceExit --detectOpenHandles",
     "test:cov": "jest --coverage"
   },
   "dependencies": {

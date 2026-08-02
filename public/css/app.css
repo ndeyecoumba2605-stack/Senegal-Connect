@@ -1,70 +1,625 @@
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: system-ui, sans-serif; height: 100vh; background: #f1f5f9; }
+/* ==========================================================================
+   1. VARIABLES GLOBALES & MAPPING RÔLES
+   ========================================================================== */
+:root {
+  --primary-color: #008552;      /* Vert Sénégal */
+  --secondary-color: #e31b23;    /* Rouge Sénégal */
+  --accent-color: #fdef42;       /* Jaune Sénégal */
+  --bg-dark: #1e293b;
+  --bg-light: #f8fafc;
+  --text-dark: #0f172a;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  
+  /* Couleurs spécifiques par rôle */
+  --role-client-color: #0284c7;  /* Bleu */
+  --role-agent-color: #d97706;   /* Orange / Ambre */
+  --role-admin-color: #7c3aed;   /* Violet */
+}
 
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: #f1f5f9;
+  color: var(--text-dark);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Utilitaires généraux */
 .cache { display: none !important; }
-
-/* Barre du haut */
-.barre-haut {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 20px; background: #0f172a; color: white;
-}
-.barre-haut .logo { font-weight: 800; }
-.utilisateur-connecte { display: flex; align-items: center; gap: 10px; }
-.badge-role { background: #2563eb; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
-.utilisateur-connecte button {
-  background: #1e293b; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+.text-white { color: #ffffff; }
+.text-yellow { color: var(--accent-color); }
+.sn-flag-text {
+  background: linear-gradient(90deg, #008552 33%, #fdef42 33% 66%, #e31b23 66%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
 }
 
-/* Corps de l'app */
-.corps-app { display: flex; height: calc(100vh - 56px); }
+/* ==========================================================================
+   2. BARRE SUPÉRIEURE (TOP BAR)
+   ========================================================================== */
+.top-bar {
+  height: 60px;
+  background-color: var(--bg-dark);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 10;
+}
 
-.colonne-tickets { width: 260px; background: white; border-right: 1px solid #e2e8f0; overflow-y: auto; }
-.entete-colonne { display: flex; justify-content: space-between; align-items: center; padding: 12px; }
-.entete-colonne button { border: none; background: #2563eb; color: white; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
-.liste-tickets { list-style: none; }
-.item-ticket { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
-.item-ticket:hover { background: #f8fafc; }
-.badge-statut { font-size: 11px; color: #2563eb; margin-left: 6px; }
+.top-bar .logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
 
-.colonne-chat { flex: 1; display: flex; flex-direction: column; background: #f8fafc; }
-.chat-vide { display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8; }
-.chat-actif { display: flex; flex-direction: column; height: 100%; }
+.top-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
 
-.entete-ticket { display: flex; justify-content: space-between; padding: 12px 20px; background: white; border-bottom: 1px solid #e2e8f0; }
-.actions-ticket button { margin-left: 6px; border: none; background: #e2e8f0; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+}
 
-.fil-messages { flex: 1; overflow-y: auto; padding: 16px; }
-.bulle-message { max-width: 60%; padding: 8px 12px; border-radius: 10px; margin-bottom: 8px; background: white; position: relative; }
-.bulle-message.moi { margin-left: auto; background: #dbeafe; }
-.bulle-message .accuse { font-size: 11px; color: #94a3b8; display: block; text-align: right; }
-.apercu-image { max-width: 200px; border-radius: 6px; }
-.reactions { margin-top: 4px; font-size: 12px; }
+.role-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  color: white;
+  background-color: var(--text-muted);
+}
 
-.indicateur-frappe { padding: 4px 20px; font-size: 12px; color: #64748b; font-style: italic; }
+.role-pill.role-client { background-color: var(--role-client-color); }
+.role-pill.role-agent { background-color: var(--role-agent-color); }
+.role-pill.role-admin { background-color: var(--role-admin-color); }
 
-.zone-saisie { display: flex; padding: 12px; background: white; border-top: 1px solid #e2e8f0; gap: 8px; position: relative; }
-.zone-saisie input[type="text"] { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 20px; }
-.zone-saisie button { border: none; background: #2563eb; color: white; border-radius: 20px; padding: 0 16px; cursor: pointer; }
+.btn-logout {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
 
-.selecteur-emoji { position: absolute; bottom: 60px; left: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; display: flex; gap: 6px; flex-wrap: wrap; max-width: 220px; }
-.selecteur-emoji span { cursor: pointer; font-size: 18px; }
+.btn-logout:hover {
+  color: var(--secondary-color);
+}
 
-.colonne-details { width: 260px; background: white; border-left: 1px solid #e2e8f0; padding: 16px; }
+/* ==========================================================================
+   3. DISPOSITION PRINCIPALE (SIDEBAR + MAIN CONTENT)
+   ========================================================================== */
+.app-layout {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
 
-/* Modale appel entrant */
-.modale { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
-.contenu-modale { background: white; padding: 24px; border-radius: 10px; text-align: center; }
-.actions-modale { margin-top: 16px; display: flex; gap: 10px; justify-content: center; }
-.actions-modale button { padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; }
-#btn-accepter-appel { background: #16a34a; color: white; }
-#btn-refuser-appel { background: #dc2626; color: white; }
+/* Navigation Latérale */
+.sidebar {
+  width: 240px;
+  background-color: #0f172a;
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+}
 
-/* Interface appel */
-.interface-appel { position: fixed; inset: 0; background: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.zone-video { position: relative; width: 80%; height: 70%; }
-#video-distante { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; background: #1e293b; }
-#video-locale { position: absolute; bottom: 12px; right: 12px; width: 160px; border-radius: 8px; border: 2px solid white; }
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
 
-.barre-controles-appel { margin-top: 20px; display: flex; align-items: center; gap: 16px; color: white; }
-.barre-controles-appel button { font-size: 20px; background: #1e293b; border: none; color: white; border-radius: 50%; width: 44px; height: 44px; cursor: pointer; }
-.btn-raccrocher { background: #dc2626 !important; }
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.nav-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: white;
+}
+
+.nav-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-left: 4px solid var(--accent-color);
+}
+
+.nav-btn i {
+  font-size: 1.1rem;
+  width: 20px;
+}
+
+/* zone de contenu */
+.main-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  background-color: #f8fafc;
+}
+
+.page-section {
+  display: none;
+}
+
+.page-section.active {
+  display: block;
+}
+
+/* ==========================================================================
+   4. CARTOUCHE / CARDS ET DASHBOARD MULTI-RÔLES
+   ========================================================================== */
+.card-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.card-header-stripe {
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-color), var(--accent-color), var(--secondary-color));
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 0.25rem;
+}
+
+.card-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+/* Grille de Statistiques */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.stat-card {
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.icon-stat {
+  font-size: 2rem;
+  color: var(--primary-color);
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-info .label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.stat-info .value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+/* Tableaux génériques */
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.styled-table th, .styled-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.styled-table th {
+  background-color: #f1f5f9;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   5. ESPACE SUPPORT & CHAT TEMPS RÉEL (INNER LAYOUT)
+   ========================================================================== */
+.corps-app {
+  display: flex;
+  height: 580px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: white;
+  overflow: hidden;
+}
+
+/* Colonne 1 : Liste Tickets */
+.colonne-tickets {
+  width: 280px;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  background-color: #fafafa;
+}
+
+.entete-colonne {
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.entete-colonne h2 { font-size: 1rem; font-weight: 700; }
+
+.btn-action {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filtres-tickets {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.filtres-tickets select {
+  width: 100%;
+  padding: 0.35rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.liste-tickets {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.item-ticket {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.item-ticket:hover, .item-ticket.active {
+  background-color: #e2e8f0;
+}
+
+/* Colonne 2 : Chat principal */
+.colonne-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  position: relative;
+}
+
+.chat-vide {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.chat-actif {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.entete-ticket {
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f8fafc;
+}
+
+.actions-ticket {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.actions-ticket button {
+  background: white;
+  border: 1px solid var(--border-color);
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.actions-ticket button:hover {
+  background: #f1f5f9;
+}
+
+.btn-danger {
+  background-color: var(--secondary-color) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.btn-success {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  border: none !important;
+}
+
+/* Fil de discussion */
+.fil-messages {
+  flex: 1;
+  padding: 1.25rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background-color: #f8fafc;
+}
+
+.bulle-message {
+  max-width: 70%;
+  padding: 0.65rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  position: relative;
+}
+
+.bulle-message.envoye {
+  align-self: flex-end;
+  background-color: var(--primary-color);
+  color: white;
+  border-bottom-right-radius: 2px;
+}
+
+.bulle-message.recu {
+  align-self: flex-start;
+  background-color: #e2e8f0;
+  color: var(--text-dark);
+  border-bottom-left-radius: 2px;
+}
+
+.indicateur-frappe {
+  padding: 0.25rem 1.25rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* Zone de Saisie */
+.zone-saisie {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+}
+
+.zone-saisie input[type="text"] {
+  flex: 1;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  outline: none;
+}
+
+.zone-saisie button {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.zone-saisie button[type="submit"] {
+  color: var(--primary-color);
+}
+
+.selecteur-emoji {
+  position: absolute;
+  bottom: 60px;
+  left: 15px;
+  background: white;
+  border: 1px solid var(--border-color);
+  padding: 0.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+/* Colonne 3 : Détails Client */
+.colonne-details {
+  width: 250px;
+  border-left: 1px solid var(--border-color);
+  padding: 1rem;
+  background-color: #fafafa;
+}
+
+.colonne-details h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+/* ==========================================================================
+   6. WEBRTC & MODALES D'APPEL (VISIO / AUDIO)
+   ========================================================================== */
+.modale {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.contenu-modale {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.actions-modale {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.actions-modale button {
+  padding: 0.6rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Interface d'appel Visio Plein Écran */
+.interface-appel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #0f172a;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+}
+
+.zone-video {
+  flex: 1;
+  position: relative;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#video-distante {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#video-locale {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 180px;
+  height: 135px;
+  border: 2px solid white;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.barre-controles-appel {
+  height: 80px;
+  background: rgba(15, 23, 42, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+#chrono-appel {
+  color: white;
+  font-family: monospace;
+  font-size: 1.1rem;
+  margin-right: 1rem;
+}
+
+.barre-controles-appel button {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  background: #334155;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.barre-controles-appel button:hover {
+  background: #475569;
+}
+
+.barre-controles-appel .btn-raccrocher {
+  background-color: var(--secondary-color);
+}
+
+.barre-controles-appel .btn-raccrocher:hover {
+  background-color: #dc2626;
+}

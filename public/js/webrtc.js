@@ -5,8 +5,11 @@ let appelEnCours = null;
 let chronoInterval = null;
 
 function initPeer() {
-  peer = new Peer();
-  peer.on('open', (id) => { window.monPeerId = id; });
+  peer = new Peer(); // Utilise le serveur PeerJS public par défaut
+
+  peer.on('open', (id) => {
+    window.monPeerId = id;
+  });
 }
 initPeer();
 

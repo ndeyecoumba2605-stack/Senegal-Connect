@@ -1,30 +1,51 @@
 require('dotenv').config();
+console.log('JWT_SECRET chargé (empreinte) :', process.env.JWT_SECRET?.slice(0, 8), '- longueur:', process.env.JWT_SECRET?.length);
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const morgan = require('morgan');
 const { Server } = require('socket.io');
 const { ExpressPeerServer } = require('peer');
-const { gestionnaire404 } = require('./middleware/erreurs');
 
 const logger = require('./config/logger');
-const { gestionnaireErreurs, routeInconnue } = require('./middleware/erreurs');
+const { gestionnaire404, gestionnaireErreurs } = require('./middleware/erreurs');
 const swaggerSpec = require('./config/swagger');
 const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: process.env.CORS_ORIGINS?.split(',') } });
 
-// IMPORTANT : permet à req.app.get('io') de fonctionner dans les routes (ex: tickets.js)
+// 🛠️ FIX CORS & TRANSPORTS :
+// On définit une origine par défaut ('*') si CORS_ORIGINS n'est pas dans le .env
+const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : '*';
+
+const io = new Server(server, { 
+  cors: { 
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['polling', 'websocket'] // Permet la négociation propre HTTP -> WS
+});
+
+// IMPORTANT : permet à req.app.get('io') de fonctionner dans les routes
 app.set('io', io);
 
-app.use(cors({ origin: process.env.CORS_ORIGINS?.split(',') }));
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
+
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html') || req.path === '/') {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  }
+  next();
+});
+
 app.use(morgan('combined', { stream: logger.stream }));
 app.use(express.static('public'));
 app.use('/uploads', express.static('uploads'));
 
+// Routes API & Swagger
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
 
@@ -38,12 +59,19 @@ app.get('/api/health', (req, res) =>
   res.json({ statut: 'ok', version: '1.0.0', uptime: process.uptime(), env: process.env.NODE_ENV })
 );
 
+// WebSockets (Support & Appels)
 require('./socket/support')(io);
 require('./socket/appels')(io);
 
-const peerServer = ExpressPeerServer(server, { path: '/peerjs' });
-app.use('/peerjs', peerServer);
+// Server PeerJS pour la visio/voix
+const { PeerServer } = require('peer');
 
+let peerServer;
+if (process.env.NODE_ENV !== 'test') {
+  peerServer = PeerServer({ port: 3001, path: '/peerjs' });
+}
+
+// Gestion des erreurs
 app.use(gestionnaire404);
 app.use(gestionnaireErreurs);
 

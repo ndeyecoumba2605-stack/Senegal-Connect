@@ -73,8 +73,8 @@
         return;
       }
 
-      localStorage.setItem('token', donnees.token);
-      localStorage.setItem('utilisateur', JSON.stringify(donnees.utilisateur));
+      sessionStorage.setItem('token', donnees.token);
+      sessionStorage.setItem('utilisateur', JSON.stringify(donnees.utilisateur));
       window.location.href = 'app.html';
     } catch (err) {
       erreur.textContent = 'Erreur de connexion au serveur';

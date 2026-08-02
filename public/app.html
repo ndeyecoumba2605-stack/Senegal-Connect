@@ -3,108 +3,373 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sénégal Connect — Support Client</title>
+  <title>Sénégal Connect — Espace Client & Gestion</title>
   <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-<script>
-  // Garde d'accès : pas de token → retour à la connexion
-  if (!localStorage.getItem('token')) {
-    window.location.href = 'connexion.html';
+  <!-- 🛡️ GARDE D'ACCÈS IMMEDIATE -->
+  <script>
+    {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    const userStr = sessionStorage.getItem('utilisateur') || localStorage.getItem('utilisateur');
+
+    if (!token || !userStr) {
+      window.location.href = 'connexion.html';
+    } else {
+      window.currentUser = JSON.parse(userStr);
+    }
   }
-</script>
+  </script>
 
-<header class="barre-haut">
-  <div class="logo">Sénégal Connect</div>
-  <div class="utilisateur-connecte">
-    <span id="nom-utilisateur"></span>
-    <span id="role-utilisateur" class="badge-role"></span>
-    <button id="btn-deconnexion">Déconnexion</button>
-  </div>
-</header>
-
-<div class="corps-app">
-
-  <aside class="colonne-tickets">
-    <div class="entete-colonne">
-      <h2>Tickets</h2>
-      <button id="btn-nouveau-ticket">+ Nouveau</button>
+  <!-- Barre Supérieure (Header Sénégal Connect) -->
+  <header class="top-bar">
+    <div class="logo">
+      <span class="text-white">Sénégal</span> <span class="text-yellow">Connect</span>
     </div>
-    <ul id="liste-tickets" class="liste-tickets"></ul>
-  </aside>
-
-  <main class="colonne-chat">
-    <div id="chat-vide" class="chat-vide">
-      <p>Sélectionnez ou ouvrez un ticket pour démarrer une conversation.</p>
-    </div>
-
-    <div id="chat-actif" class="chat-actif cache">
-      <div class="entete-ticket">
-        <div>
-          <h3 id="sujet-ticket"></h3>
-          <span id="statut-ticket" class="badge-statut"></span>
-        </div>
-        <div class="actions-ticket">
-          <button id="btn-appel-audio" title="Appel audio">📞</button>
-          <button id="btn-appel-video" title="Appel vidéo">🎥</button>
-          <button id="btn-fermer-ticket" title="Fermer le ticket">Fermer</button>
-        </div>
+    <div class="top-nav">
+      <div class="user-badge" id="userBadge">
+        <i class="fa-solid fa-user-circle"></i>
+        <span id="userName">Chargement...</span>
+        <span class="role-pill" id="userRolePill">Role</span>
       </div>
+      <button class="btn-logout" id="btn-deconnexion" title="Déconnexion">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+    </div>
+  </header>
 
-      <div id="fil-messages" class="fil-messages"></div>
-      <div id="indicateur-frappe" class="indicateur-frappe cache"></div>
+  <!-- Disposition Principale avec Sidebar et Contenu -->
+  <div class="app-layout">
+    
+    <!-- Navigation Latérale -->
+    <aside class="sidebar">
+      <nav class="sidebar-menu">
+        <button class="nav-btn active" data-target="sec-dashboard">
+          <i class="fa-solid fa-chart-line"></i> Tableau de bord
+        </button>
 
-      <form id="form-message" class="zone-saisie">
-        <button type="button" id="btn-emoji" title="Émojis">😊</button>
-        <button type="button" id="btn-fichier" title="Partager un fichier">📎</button>
-        <input type="file" id="input-fichier" hidden>
-        <input type="text" id="input-message" placeholder="Écrire un message..." autocomplete="off">
-        <button type="submit">Envoyer</button>
-      </form>
+        <!-- Vue Admin Uniquement -->
+        <button class="nav-btn role-admin-only" data-target="sec-clients">
+          <i class="fa-solid fa-users"></i> Clients (+221)
+        </button>
 
-      <div id="selecteur-emoji" class="selecteur-emoji cache">
-        <span>😀</span><span>😂</span><span>😍</span><span>👍</span>
-        <span>🙏</span><span>😢</span><span>😡</span><span>🎉</span>
-        <span>🔥</span><span>👏</span><span>😮</span><span>❤️</span>
+        <!-- Vue Admin & Agent -->
+        <button class="nav-btn role-admin-agent" data-target="sec-forfaits">
+          <i class="fa-solid fa-box-archive"></i> Forfaits
+        </button>
+        <button class="nav-btn role-admin-agent" data-target="sec-factures">
+          <i class="fa-solid fa-file-invoice-dollar"></i> Factures
+        </button>
+
+        <!-- Accessible par Tous (Admin, Agent, Client) -->
+        <button class="nav-btn" data-target="sec-tickets">
+          <i class="fa-solid fa-headset"></i> Support & Chat
+        </button>
+      </nav>
+    </aside>
+
+    <!-- Zone de Contenu -->
+    <main class="main-content">
+
+      <!-- ================= SECTION TABLEAU DE BORD ================= -->
+      <section id="sec-dashboard" class="page-section active">
+        
+        <!-- 👑 TABLEAU DE BORD : ADMIN -->
+        <div id="dash-admin" class="card-container role-dash" style="display: none;">
+          <div class="card-header-stripe"></div>
+          <div class="card-body">
+            <h2 class="card-title"><span class="sn-flag-text">SN</span> Tableau de Bord Admin</h2>
+            <p class="card-subtitle">Vue d'ensemble sur l'infrastructure et l'activité réseau</p>
+
+            <div class="stats-grid">
+              <div class="stat-card">
+                <i class="fa-solid fa-users icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Total Clients</span>
+                  <strong class="value" id="statAdminClients">0</strong>
+                </div>
+              </div>
+              <div class="stat-card">
+                <i class="fa-solid fa-wallet icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Revenus Mensuels</span>
+                  <strong class="value" id="statAdminMRR">0 FCFA</strong>
+                </div>
+              </div>
+              <div class="stat-card">
+                <i class="fa-solid fa-file-circle-exclamation icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Factures Impayées</span>
+                  <strong class="value" id="statAdminFactures">0</strong>
+                </div>
+              </div>
+              <div class="stat-card">
+                <i class="fa-solid fa-headset icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Tickets Ouverts</span>
+                  <strong class="value" id="statAdminTickets">0</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 🎧 TABLEAU DE BORD : AGENT -->
+        <div id="dash-agent" class="card-container role-dash" style="display: none;">
+          <div class="card-header-stripe"></div>
+          <div class="card-body">
+            <h2 class="card-title"><span class="sn-flag-text">SN</span> Espace Support & Assistance</h2>
+            <p class="card-subtitle">Gestion des appels, réclamations et assistance abonnés</p>
+
+            <div class="stats-grid">
+              <div class="stat-card">
+                <i class="fa-solid fa-inbox icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Tickets en Attente</span>
+                  <strong class="value" id="statAgentEnAttente">0</strong>
+                </div>
+              </div>
+              <div class="stat-card">
+                <i class="fa-solid fa-comments icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Mes Tickets Assignés</span>
+                  <strong class="value" id="statAgentMesTickets">0</strong>
+                </div>
+              </div>
+              <div class="stat-card">
+                <i class="fa-solid fa-video icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Appels Télécom (Aujourd'hui)</span>
+                  <strong class="value" id="statAgentAppels">0</strong>
+                </div>
+              </div>
+              <div class="stat-card">
+                <i class="fa-solid fa-circle-check icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Tickets Résolus</span>
+                  <strong class="value" id="statAgentResolus">0</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 👤 TABLEAU DE BORD : CLIENT -->
+        <div id="dash-client" class="card-container role-dash" style="display: none;">
+          <div class="card-header-stripe"></div>
+          <div class="card-body">
+            <h2 class="card-title"><span class="sn-flag-text">SN</span> Bienvenue sur votre Espace</h2>
+            <p class="card-subtitle">Consultez l'état de votre ligne et vos abonnements</p>
+
+            <div class="stats-grid">
+              <div class="stat-card">
+                <i class="fa-solid fa-box-archive icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Forfait Actif</span>
+                  <strong class="value" id="statClientForfait">Passeport Data</strong>
+                </div>
+              </div>
+              <div class="stat-card">
+                <i class="fa-solid fa-wifi icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Solde Internet</span>
+                  <strong class="value" id="statClientData">15.5 Go</strong>
+                </div>
+              </div>
+              <div class="stat-card">
+                <i class="fa-solid fa-receipt icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Dernière Facture</span>
+                  <strong class="value" id="statClientFacture">12 500 FCFA</strong>
+                </div>
+              </div>
+              <div class="stat-card">
+                <i class="fa-solid fa-life-ring icon-stat"></i>
+                <div class="stat-info">
+                  <span class="label">Mes Tickets Support</span>
+                  <strong class="value" id="statClientTickets">0</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= SECTION CLIENTS (ADMIN) ================= -->
+      <section id="sec-clients" class="page-section">
+        <div class="card-container">
+          <div class="card-header-stripe"></div>
+          <div class="card-body">
+            <h2 class="card-title">Gestion des Abonnés (+221)</h2>
+            <table class="styled-table">
+              <thead>
+                <tr>
+                  <th>Nom & Prénom</th>
+                  <th>MSISDN</th>
+                  <th>Email</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody id="clientsTableBody">
+                <!-- Rempli dynamiquement -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION SUPPORT & CHAT TEMPS RÉEL ================= -->
+      <section id="sec-tickets" class="page-section">
+        <div class="card-container">
+          <div class="card-header-stripe"></div>
+          <div class="card-body">
+            
+            <div class="corps-app">
+              <!-- Liste Latérale des Tickets -->
+              <aside class="colonne-tickets">
+                <div class="entete-colonne">
+                  <h2 id="titre-liste-tickets">Tickets</h2>
+                  <button id="btn-nouveau-ticket" class="btn-action">+ Nouveau</button>
+                </div>
+
+                <!-- Filtres statut réservés aux agents/admins -->
+                <div id="filtres-agent" class="filtres-tickets role-admin-agent" style="display: none;">
+                  <select id="filtre-statut">
+                    <option value="tous">Tous les statuts</option>
+                    <option value="ouvert">Ouverts</option>
+                    <option value="en_cours">En cours</option>
+                    <option value="ferme">Fermés</option>
+                  </select>
+                </div>
+
+                <ul id="liste-tickets" class="liste-tickets"></ul>
+              </aside>
+
+              <!-- Zone de Chat Actif -->
+              <main class="colonne-chat">
+                <div id="chat-vide" class="chat-vide">
+                  <p><i class="fa-solid fa-comments"></i> Sélectionnez un ticket pour démarrer la discussion.</p>
+                </div>
+
+                <div id="chat-actif" class="chat-actif cache">
+                  <div class="entete-ticket">
+                    <div>
+                      <h3 id="sujet-ticket"></h3>
+                      <span id="statut-ticket" class="badge-statut"></span>
+                    </div>
+                    
+                    <div class="actions-ticket">
+                      <button id="btn-appel-audio" title="Appel audio"><i class="fa-solid fa-phone"></i></button>
+                      <button id="btn-appel-video" title="Appel vidéo"><i class="fa-solid fa-video"></i></button>
+                      <button id="btn-fermer-ticket" class="btn-danger" title="Fermer le ticket">Fermer</button>
+                    </div>
+                  </div>
+
+                  <div id="fil-messages" class="fil-messages"></div>
+                  <div id="indicateur-frappe" class="indicateur-frappe cache"></div>
+
+                  <form id="form-message" class="zone-saisie">
+                    <button type="button" id="btn-emoji" title="Émojis">😊</button>
+                    <button type="button" id="btn-fichier" title="Partager un fichier"><i class="fa-solid fa-paperclip"></i></button>
+                    <input type="file" id="input-fichier" hidden>
+                    <input type="text" id="input-message" placeholder="Écrire un message..." autocomplete="off">
+                    <button type="submit"><i class="fa-solid fa-paper-plane"></i></button>
+                  </form>
+
+                  <div id="selecteur-emoji" class="selecteur-emoji cache">
+                    <span>😀</span><span>😂</span><span>😍</span><span>👍</span>
+                    <span>🙏</span><span>😢</span><span>😡</span><span>🎉</span>
+                    <span>🔥</span><span>👏</span><span>😮</span><span>❤️</span>
+                  </div>
+                </div>
+              </main>
+
+              <!-- Panneau Détails Client (Agent & Admin) -->
+              <aside class="colonne-details role-admin-agent" id="colonne-details" style="display: none;">
+                <h2>Détails Abonné</h2>
+                <div id="details-client">
+                  <p class="texte-neutre">Sélectionnez un ticket pour afficher les informations de l'abonné.</p>
+                </div>
+              </aside>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ================= MODALE & INTERFACE VISIO / WEBRTC ================= -->
+  <div id="modale-appel-entrant" class="modale cache">
+    <div class="contenu-modale">
+      <p id="texte-appel-entrant">Appel entrant...</p>
+      <div class="actions-modale">
+        <button id="btn-accepter-appel" class="btn-success"><i class="fa-solid fa-phone"></i> Accepter</button>
+        <button id="btn-refuser-appel" class="btn-danger"><i class="fa-solid fa-phone-slash"></i> Refuser</button>
       </div>
     </div>
-  </main>
+  </div>
 
-  <aside class="colonne-details cache" id="colonne-details">
-    <h2>Détails abonné</h2>
-    <div id="details-client"></div>
-  </aside>
-
-</div>
-
-<div id="modale-appel-entrant" class="modale cache">
-  <div class="contenu-modale">
-    <p id="texte-appel-entrant">Appel entrant...</p>
-    <div class="actions-modale">
-      <button id="btn-accepter-appel">Accepter</button>
-      <button id="btn-refuser-appel">Refuser</button>
+  <div id="interface-appel" class="interface-appel cache">
+    <div class="zone-video">
+      <video id="video-distante" autoplay playsinline></video>
+      <video id="video-locale" autoplay playsinline muted></video>
+    </div>
+    <div class="barre-controles-appel">
+      <span id="chrono-appel">00:00</span>
+      <button id="btn-toggle-micro" title="Micro"><i class="fa-solid fa-microphone"></i></button>
+      <button id="btn-toggle-camera" title="Caméra"><i class="fa-solid fa-video"></i></button>
+      <button id="btn-partage-ecran" title="Partager l'écran"><i class="fa-solid fa-desktop"></i></button>
+      <button id="btn-raccrocher" title="Raccrocher" class="btn-raccrocher"><i class="fa-solid fa-phone-slash"></i></button>
     </div>
   </div>
-</div>
 
-<div id="interface-appel" class="interface-appel cache">
-  <div class="zone-video">
-    <video id="video-distante" autoplay playsinline></video>
-    <video id="video-locale" autoplay playsinline muted></video>
-  </div>
-  <div class="barre-controles-appel">
-    <span id="chrono-appel">00:00</span>
-    <button id="btn-toggle-micro" title="Micro">🎙️</button>
-    <button id="btn-toggle-camera" title="Caméra">📷</button>
-    <button id="btn-partage-ecran" title="Partager l'écran">🖥️</button>
-    <button id="btn-raccrocher" title="Raccrocher" class="btn-raccrocher">📵</button>
-  </div>
-</div>
+  <!-- ================= CHARGEMENT DES BIBLIOTHÈQUES & SCRIPTS ================= -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  
+  <!-- Ordre d'exécution strict : App -> WebRTC -->
+  <script src="js/app.js"></script>
+  <script src="js/webrtc.js"></script>
 
-<script src="/socket.io/socket.io.js"></script>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/webrtc.js"></script>
-<script src="js/app.js"></script>
+  <!-- Script d'ajustement dynamique des Vues / Rôles -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const u = window.currentUser;
+      if (!u) return;
+
+      // 1. Affichage Profil Utilisateur
+      document.getElementById('userName').textContent = `${u.prenom} ${u.nom}`;
+      const rolePill = document.getElementById('userRolePill');
+      rolePill.textContent = u.role.toUpperCase();
+      rolePill.classList.add(`role-${u.role}`);
+
+      // 2. Activation du Dashboard selon le rôle
+      document.querySelectorAll('.role-dash').forEach(el => el.style.display = 'none');
+      const activeDash = document.getElementById(`dash-${u.role}`);
+      if (activeDash) activeDash.style.display = 'block';
+
+      // 3. Masquage / Affichage des contrôles de navigation selon le rôle
+      if (u.role === 'client') {
+        document.querySelectorAll('.role-admin-only, .role-admin-agent').forEach(el => el.style.display = 'none');
+        const titreTickets = document.getElementById('titre-liste-tickets');
+        if (titreTickets) titreTickets.textContent = 'Mes Demandes';
+      } else {
+        // Mode Agent ou Admin
+        document.querySelectorAll('.role-admin-agent').forEach(el => el.style.display = '');
+        if (u.role === 'admin') {
+          document.querySelectorAll('.role-admin-only').forEach(el => el.style.display = '');
+        } else {
+          document.querySelectorAll('.role-admin-only').forEach(el => el.style.display = 'none');
+        }
+        const titreTickets = document.getElementById('titre-liste-tickets');
+        if (titreTickets) titreTickets.textContent = 'File de Support';
+      }
+    });
+  </script>
 </body>
 </html>

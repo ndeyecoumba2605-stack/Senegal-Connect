@@ -82,6 +82,7 @@ router.post('/:id/fichier', verifierJWT, upload.single('fichier'), async (req, r
     );
 
     const io = req.app.get('io');
+    io.to(`ticket:${req.params.id}`).emit('fichier:partager', resultat.rows[0]);
     io.to(`ticket:${req.params.id}`).emit('message:nouveau', resultat.rows[0]);
 
     res.status(201).json(resultat.rows[0]);

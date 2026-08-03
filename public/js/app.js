@@ -58,7 +58,7 @@ function masquerInterfaceAppel() {
 
 // Handlers globaux WebRTC
 window.gererAppelEntrant = function(donnees) {
-  afficherInterfaceAppel(`Appel entrant de ${donnees.nom || 'Abonné'}...`, donnees.type === 'video');
+  afficherInterfaceAppel(`Appel entrant de ${donnees.initiateur?.nom || 'Abonné'}...`, donnees.type === 'video');
 };
 
 window.gererAppelAccepte = function(donnees) {
@@ -83,6 +83,10 @@ function connecterSocket() {
 
   socket.on('connect', () => {
     console.log('Connecté au serveur Socket.io avec ID :', socket.id);
+    // Si un ticket était ouvert avant reconnexion, rejoindre la room
+    if (ticketActifId) {
+      socket.emit('ticket:assigner', { ticketId: ticketActifId });
+    }
   });
 
   socket.on('connect_error', (err) => {
@@ -93,9 +97,12 @@ function connecterSocket() {
   socket.on('ticket:pris_en_charge', rafraichirTicket);
   socket.on('ticket:ferme', rafraichirTicket);
 
+  // RECEPTION DES MESSAGES TEMPS RÉEL (Client & Agent)
   socket.on('message:nouveau', (message) => {
-    if (message.ticket_id === ticketActifId) afficherMessage(message);
-    accuserReceptionSiVisible(message);
+    if (String(message.ticket_id) === String(ticketActifId)) {
+      afficherMessage(message);
+      accuserReceptionSiVisible(message);
+    }
   });
 
   socket.on('message:statut', ({ messageId, statut }) => {
@@ -262,7 +269,10 @@ async function ouvrirTicket(ticket) {
   if (sujetEl) sujetEl.textContent = `#${ticket.id} - ${ticket.sujet}`;
   if (statutEl) statutEl.textContent = ticket.statut;
 
-  if (socket) socket.emit('ticket:assigner', { ticketId: ticket.id });
+  // Rejoindre la room de ce ticket pour recevoir tous les messages en temps réel
+  if (socket && socket.connected) {
+    socket.emit('ticket:assigner', { ticketId: ticket.id });
+  }
 
   const fil = document.getElementById('fil-messages');
   if (fil) fil.innerHTML = '';
@@ -280,23 +290,20 @@ function afficherMessage(message) {
   const fil = document.getElementById('fil-messages');
   if (!fil) return;
 
-  // 1. Éviter les doublons si le message existe déjà dans le DOM
+  // Éviter les doublons
   if (message.id && document.querySelector(`[data-message-id="${message.id}"]`)) {
     return;
   }
 
   const userActuel = utilisateur();
-  
-  // Comparaison robuste (String vs Number) pour savoir si c'est "moi"
   const idExpediteur = message.expediteur_id || message.sender_id;
-  const idMoi = userActuel?.id || userActuel?.user_id;
+  const idMoi = userActuel?.id;
   const estMoi = String(idExpediteur) === String(idMoi);
 
   const div = document.createElement('div');
   div.className = `bulle-message ${estMoi ? 'moi' : 'autre'}`;
   if (message.id) div.dataset.messageId = message.id;
 
-  // Style CSS de secours si tes classes CSS ne sont pas chargées
   div.style.margin = '8px 0';
   div.style.padding = '10px 14px';
   div.style.borderRadius = '12px';
@@ -306,7 +313,7 @@ function afficherMessage(message) {
 
   if (estMoi) {
     div.style.float = 'right';
-    div.style.backgroundColor = '#10b981'; // Vert Senegal-Connect / Maison Linguère
+    div.style.backgroundColor = '#10b981';
     div.style.color = '#ffffff';
   } else {
     div.style.float = 'left';
@@ -314,34 +321,31 @@ function afficherMessage(message) {
     div.style.color = '#1e293b';
   }
 
-  // Contenu du message
   let contenuHtml = '';
   if (message.type === 'texte' || !message.type) {
     contenuHtml = `<p style="margin:0; padding:0;">${message.contenu}</p>`;
   } else if (message.type === 'image') {
-    contenuHtml = `<img src="${message.fichier_url}" style="max-width: 100%; border-radius: 8px; display: block; margin-bottom: 4px;">`;
+    contenuHtml = `<img src="${message.fichier_url || message.contenu}" style="max-width: 100%; border-radius: 8px; display: block; margin-bottom: 4px;">`;
   } else if (message.type === 'audio') {
-    contenuHtml = `<audio controls src="${message.fichier_url}" style="max-width: 100%;"></audio>`;
+    contenuHtml = `<audio controls src="${message.fichier_url || message.contenu}" style="max-width: 100%;"></audio>`;
   } else {
-    contenuHtml = `<a href="${message.fichier_url}" target="_blank" style="color: inherit; text-decoration: underline;">📄 ${message.fichier_nom || 'Télécharger le document'}</a>`;
+    contenuHtml = `<a href="${message.fichier_url || message.contenu}" target="_blank" style="color: inherit; text-decoration: underline;">📄 ${message.fichier_nom || 'Télécharger le document'}</a>`;
   }
 
   div.innerHTML = `${contenuHtml}<span class="accuse" style="font-size: 0.65rem; opacity: 0.8; float: right; margin-left: 8px; margin-top: 4px;">✓</span>`;
   
   fil.appendChild(div);
 
-  // Élément d'annulation de float pour conserver la hauteur du fil
   const cleaner = document.createElement('div');
   cleaner.style.clear = 'both';
   fil.appendChild(cleaner);
 
-  // Defilement automatique en bas de discussion
   fil.scrollTop = fil.scrollHeight;
 }
 
 function accuserReceptionSiVisible(message) {
   const userActuel = utilisateur();
-  if (userActuel && message.ticket_id === ticketActifId && message.expediteur_id !== userActuel.id && socket) {
+  if (userActuel && String(message.expediteur_id) !== String(userActuel.id) && socket) {
     socket.emit('message:lu', { messageId: message.id, expediteurId: message.expediteur_id, ticketId: message.ticket_id });
   }
 }
@@ -370,7 +374,6 @@ function mettreAJourReactions(messageId, reactions) {
   zone.innerHTML = reactions.map(r => `${r.emoji} ${r.count}`).join(' ');
 }
 
-// Initialisation de la saisie de message et pièces jointes
 // Initialisation de la saisie de message, emojis et pièces jointes
 function initialiserFormulaireMessage() {
   const formMessage = document.getElementById('form-message');
@@ -381,54 +384,54 @@ function initialiserFormulaireMessage() {
   const inputFichier = document.getElementById('input-fichier');
 
   // A. SOUMISSION DU MESSAGE TEXTE
-  // Dans initialiserFormulaireMessage() -> événement submit du formMessage :
-if (formMessage) {
-  formMessage.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    if (!ticketActifId) {
-      alert("Veuillez choisir ou ouvrir un ticket actif avant d'envoyer un message.");
-      return;
-    }
-
-    const contenu = inputMessage.value.trim();
-    if (!contenu) return;
-
-    const userActuel = utilisateur();
-    const payload = {
-      ticket_id: ticketActifId,
-      expediteur_id: userActuel?.id,
-      contenu: contenu,
-      type: 'texte',
-      created_at: new Date().toISOString()
-    };
-
-    // 1. AFFICHAGE IMMÉDIAT DANS LE FIL DE DISCUSSION
-    afficherMessage(payload);
-
-    // 2. VIDER LE CHAMP
-    inputMessage.value = '';
-    if (selecteurEmoji) selecteurEmoji.classList.add('cache');
-
-    // 3. ENVOI AU BACKEND (SOCKET OU FETCH)
-    if (socket && socket.connected) {
-      socket.emit('message:envoyer', payload);
-    } else {
-      try {
-        await fetch(`/api/tickets/${ticketActifId}/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token()}`
-          },
-          body: JSON.stringify(payload)
-        });
-      } catch (err) {
-        console.error("Erreur d'envoi du message :", err);
+  if (formMessage) {
+    formMessage.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (!ticketActifId) {
+        alert("Veuillez choisir ou ouvrir un ticket actif avant d'envoyer un message.");
+        return;
       }
+
+      const contenu = inputMessage.value.trim();
+      if (!contenu) return;
+
+      // Structure exacte attendue par support.js (ticketId, contenu, type)
+      const payloadSocket = {
+        ticketId: ticketActifId,
+        contenu: contenu,
+        type: 'texte'
+      };
+
+      if (socket && socket.connected) {
+        socket.emit('message:envoyer', payloadSocket);
+      } else {
+        try {
+          await fetch(`/api/tickets/${ticketActifId}/messages`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token()}`
+            },
+            body: JSON.stringify(payloadSocket)
+          });
+        } catch (err) {
+          console.error("Erreur d'envoi du message :", err);
+        }
+      }
+
+      inputMessage.value = '';
+      if (selecteurEmoji) selecteurEmoji.classList.add('cache');
+    });
+
+    if (inputMessage) {
+      inputMessage.addEventListener('input', () => {
+        if (!ticketActifId || !socket) return;
+        const userActuel = utilisateur();
+        socket.emit('frappe', { ticketId: ticketActifId, nom: userActuel?.prenom || userActuel?.nom || 'Abonné' });
+      });
     }
-  });
-}
+  }
 
   // B. ÉMOJIS & STICKERS
   if (btnEmoji && selecteurEmoji) {
@@ -440,7 +443,6 @@ if (formMessage) {
     selecteurEmoji.querySelectorAll('span, img').forEach(element => {
       element.addEventListener('click', () => {
         if (inputMessage) {
-          // Si c'est un sticker image ou un emoji texte
           const valeur = element.getAttribute('data-emoji') || element.textContent;
           inputMessage.value += valeur;
           inputMessage.focus();
@@ -456,7 +458,7 @@ if (formMessage) {
     });
   }
 
-  // C. ENVOI DE FICHIER (CORRIGÉ)
+  // C. ENVOI DE FICHIER (IMAGES, DOCS, AUDIO)
   if (btnFichier && inputFichier) {
     btnFichier.addEventListener('click', () => inputFichier.click());
 
@@ -470,14 +472,11 @@ if (formMessage) {
       }
 
       const fichier = inputFichier.files[0];
-      const userActuel = utilisateur();
       const formData = new FormData();
-      
       formData.append('fichier', fichier);
       formData.append('ticket_id', ticketActifId);
 
       try {
-        // 1. Upload du fichier vers le serveur backend
         const res = await fetch(`/api/tickets/${ticketActifId}/fichiers`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token()}` },
@@ -488,36 +487,27 @@ if (formMessage) {
           const json = await res.json();
           const messageData = json.data || json;
 
-          // Détermination du type de fichier (image, audio ou fichier générique)
           let typeFichier = 'fichier';
           if (fichier.type.startsWith('image/')) typeFichier = 'image';
           else if (fichier.type.startsWith('audio/')) typeFichier = 'audio';
 
-          // Structure normalisée du message
-          const payloadMessage = {
-            ticket_id: ticketActifId,
-            expediteur_id: userActuel?.id,
-            type: messageData.type || typeFichier,
-            fichier_url: messageData.fichier_url || messageData.url || messageData.path,
-            fichier_nom: messageData.fichier_nom || fichier.name,
-            contenu: messageData.contenu || fichier.name
-          };
+          const urlFichier = messageData.fichier_url || messageData.url || messageData.path;
 
-          // 2. Diffusion par Socket.io si disponible
           if (socket && socket.connected) {
-            socket.emit('message:envoyer', payloadMessage);
-          } else {
-            // 3. Sinon affichage direct dans le fil local
-            afficherMessage(payloadMessage);
+            socket.emit('message:envoyer', {
+              ticketId: ticketActifId,
+              contenu: urlFichier,
+              type: typeFichier
+            });
           }
         } else {
           alert("Erreur serveur lors du téléchargement du fichier.");
         }
       } catch (err) {
-        console.error("Erreur réseau/upload du fichier :", err);
+        console.error("Erreur upload du fichier :", err);
         alert("Échec de l'envoi du fichier.");
       } finally {
-        inputFichier.value = ''; // Réinitialise l'input pour permettre de ré-uploader le même fichier si besoin
+        inputFichier.value = '';
       }
     });
   }

@@ -13,7 +13,7 @@
   <script>
     {
       const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-      const userStr = sessionStorage.getItem('utilisateur') || localStorage.getItem('utilisateur');
+      const userStr = sessionStorage.getItem('utilisateur') || localStorage.getItem('utilisateur') || sessionStorage.getItem('user') || localStorage.getItem('user');
 
       if (!token || !userStr) {
         window.location.href = 'connexion.html';
@@ -334,7 +334,44 @@
     </div>
   </div>
 
-  <!-- ================= SCRIPTS & CONFIGURATION DES RÔLES ================= -->
+  <!-- ================= MODALE APPEL VIDÉO / AUDIO (WEBRTC) ================= -->
+<div id="modal-appel" class="modal-overlay cache" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 9999; align-items: center; justify-content: center;">
+  <div class="modal-contenu" style="background: #1e293b; color: white; padding: 2rem; border-radius: 16px; width: 92%; max-width: 680px; text-align: center; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+    
+    <h3 id="titre-appel" style="margin-bottom: 1.5rem; font-size: 1.25rem; font-weight: 600;">Démarrage de l'appel...</h3>
+    
+    <!-- 1. CONTENEUR FLUX VIDÉO (Mode Visio) -->
+    <div id="container-flux-video" style="position: relative; width: 100%; height: 360px; background: #0f172a; border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: center;">
+      <!-- Vidéo Distante -->
+      <video id="video-distante" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; background: #000;"></video>
+      <!-- Vidéo Locale -->
+      <video id="video-locale" autoplay playsinline muted style="position: absolute; bottom: 12px; right: 12px; width: 130px; height: 95px; border-radius: 8px; border: 2px solid #ffffff; object-fit: cover; background: #1e293b;"></video>
+    </div>
+
+    <!-- 2. INTERFACE AUDIO (Mode Vocal Uniquement) -->
+    <div id="interface-audio-uniquement" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 220px; background: #0f172a; border-radius: 12px; margin-bottom: 1.5rem;">
+      <div style="width: 80px; height: 80px; border-radius: 50%; background: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 1rem; box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);">
+        <i class="fa-solid fa-user"></i>
+      </div>
+      <p style="color: #94a3b8; font-size: 0.95rem;">Appel vocal sécurisé en cours...</p>
+    </div>
+
+    <!-- Contrôles d'Appel -->
+    <div style="display: flex; gap: 1rem; justify-content: center; align-items: center;">
+      <button id="btn-couper-mic" class="btn" style="background: #334155; color: white; width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 1.1rem;" title="Microphone">
+        <i class="fa-solid fa-microphone"></i>
+      </button>
+      <button id="btn-couper-cam" class="btn" style="background: #334155; color: white; width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 1.1rem;" title="Caméra">
+        <i class="fa-solid fa-video"></i>
+      </button>
+      <button id="btn-raccrocher" class="btn" style="background: #ef4444; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" title="Terminer l'appel">
+        <i class="fa-solid fa-phone-slash"></i> Raccrocher
+      </button>
+    </div>
+
+  </div>
+</div>
+  <!-- ================= SCRIPTS & CONFIGURATION ================= -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="js/app.js"></script>
@@ -356,7 +393,7 @@
       const activeDash = document.getElementById(`dash-${u.role}`);
       if (activeDash) activeDash.style.display = 'block';
 
-      // 3. LOGIQUE RESTRICTIVE DE SUPPORT SELON RÔLE
+      // 3. LOGIQUE RESTRICTIVE SELON RÔLE
       const btnNouveau = document.getElementById('btn-nouveau-ticket');
       const titreTickets = document.getElementById('titre-liste-tickets');
 
@@ -365,7 +402,6 @@
         if (titreTickets) titreTickets.textContent = 'Mes Demandes';
         if (btnNouveau) btnNouveau.style.display = 'inline-block';
         
-        // Charger les vraies données dynamiques du client connecté
         chargerTableauDeBordClient();
       } else {
         document.querySelectorAll('.role-admin-agent').forEach(el => el.style.display = '');
@@ -395,14 +431,14 @@
           e.preventDefault();
           const sujet = document.getElementById('ticket-sujet').value;
           const description = document.getElementById('ticket-description').value;
-          const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+          const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
 
           try {
             const res = await fetch('/api/tickets', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${jwtToken}`
               },
               body: JSON.stringify({ sujet, description })
             });
@@ -410,8 +446,8 @@
             if (res.ok) {
               modaleTicket.classList.add('cache');
               formTicket.reset();
-              if (typeof chargerListeTickets === 'function') {
-                chargerListeTickets();
+              if (typeof chargerTickets === 'function') {
+                chargerTickets();
               } else {
                 window.location.reload();
               }
@@ -426,9 +462,9 @@
       }
     });
 
-    // --- FONCTION DE CHARGEMENT DU DASHBOARD CLIENT CORRIGÉE ---
+    // CHARGEMENT DU DASHBOARD CLIENT
     async function chargerTableauDeBordClient() {
-      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
       const u = window.currentUser;
       
       const clientId = u?.client_id || u?.id;
@@ -436,13 +472,11 @@
 
       try {
         const res = await fetch(`/api/clients/${clientId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${jwtToken}` }
         });
         
         if (res.ok) {
           const data = await res.json();
-          
-          // Correspondance exacte avec les clés JSON renvoyées par le back-end
           document.getElementById('statClientForfait').textContent = data.forfait_nom || 'Passeport Data';
           document.getElementById('statClientData').textContent = data.quota_data_go ? `${data.quota_data_go} Go` : '0 Go';
           document.getElementById('statClientFacture').textContent = data.derniere_facture ? `${data.derniere_facture} FCFA` : '0 FCFA';
@@ -453,44 +487,55 @@
       }
     }
 
-    // Fonction pour récupérer et afficher les vrais clients dans le tableau Admin
+    // LISTE DES CLIENTS ADMIN
     async function chargerVraisClients() {
-      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const tbody = document.getElementById('clientsTableBody');
+      if (!tbody) return;
+
       try {
         const res = await fetch('/api/clients', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${jwtToken}` }
         });
+
         if (res.ok) {
-          const clients = await res.json();
-          const tbody = document.getElementById('clientsTableBody');
-          if (!tbody) return;
-          
+          const reponse = await res.json();
+          const clients = Array.isArray(reponse) ? reponse : (reponse.data || []);
           tbody.innerHTML = '';
+
           if (clients.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Aucun client enregistré.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 1rem;">Aucun abonné trouvé dans la base de données.</td></tr>';
             return;
           }
 
           clients.forEach(c => {
+            const nomComplet = `${c.prenom || ''} ${c.nom || ''}`.trim() || c.nom_utilisateur || 'Client';
+            const msisdn = c.msisdn || c.telephone || c.telephone_fixe || 'N/A';
+            const email = c.email || 'N/A';
+            const statut = c.statut || 'actif';
+
             tbody.innerHTML += `
               <tr>
-                <td>${c.prenom || ''} ${c.nom || ''}</td>
-                <td>${c.msisdn || 'N/A'}</td>
-                <td>${c.email || 'N/A'}</td>
-                <td><span class="badge-statut ${c.statut || 'actif'}">${c.statut || 'actif'}</span></td>
+                <td style="font-weight: 500;">${nomComplet}</td>
+                <td><code>${msisdn}</code></td>
+                <td>${email}</td>
+                <td><span class="badge-statut ${statut}">${statut}</span></td>
               </tr>
             `;
           });
+        } else {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #ef4444; padding: 1rem;">Erreur de chargement des abonnés.</td></tr>';
         }
       } catch (err) {
         console.error('Erreur chargement clients:', err);
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #ef4444; padding: 1rem;">Impossible de contacter le serveur backend.</td></tr>';
       }
     }
 
-    // Injecter dynamiquement l'interface de création de compte agent pour l'Admin
+    // FORMULAIRE CRÉATION AGENT (ADMIN)
     function injecterInterfaceCreationAgent() {
       const sectionClients = document.getElementById('sec-clients');
-      if (!sectionClients) return;
+      if (!sectionClients || document.getElementById('form-creation-agent')) return;
 
       const divCreation = document.createElement('div');
       divCreation.className = 'card-container';
@@ -503,7 +548,7 @@
             <input type="text" id="agent-prenom" placeholder="Prénom" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
             <input type="text" id="agent-nom" placeholder="Nom" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
             <input type="email" id="agent-email" placeholder="Email professionnel" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
-            <input type="password" id="agent-mdp" placeholder="Mot de passe temporaire" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+            <input type="password" id="agent-mdp" placeholder="Mot de passe temporaire" autocomplete="new-password" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
             <button type="submit" class="btn-action" style="grid-column: 1 / -1; justify-self: start;">Créer l'agent</button>
           </form>
           <p id="msg-agent-feedback" style="margin-top: 0.5rem; font-size: 0.875rem;"></p>
@@ -513,7 +558,7 @@
 
       document.getElementById('form-creation-agent').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
         const feedback = document.getElementById('msg-agent-feedback');
 
         const payload = {
@@ -529,22 +574,22 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
+              'Authorization': `Bearer ${jwtToken}`
             },
             body: JSON.stringify(payload)
           });
 
           const data = await res.json();
           if (res.ok) {
-            feedback.style.color = 'green';
+            feedback.style.color = '#10b981';
             feedback.textContent = 'Agent créé avec succès !';
             document.getElementById('form-creation-agent').reset();
           } else {
-            feedback.style.color = 'red';
+            feedback.style.color = '#ef4444';
             feedback.textContent = `Erreur : ${data.message || 'Impossible de créer l’agent'}`;
           }
         } catch (err) {
-          feedback.style.color = 'red';
+          feedback.style.color = '#ef4444';
           feedback.textContent = 'Erreur réseau lors de la création.';
         }
       });

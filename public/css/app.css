@@ -28,9 +28,10 @@ body {
   background-color: #f1f5f9;
   color: var(--text-dark);
   height: 100vh;
+  width: 100vw;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: hidden; /* Option 2 : Désactive le défilement général de la page */
 }
 
 /* Utilitaires généraux */
@@ -169,7 +170,7 @@ body {
 .main-content {
   flex: 1;
   padding: 1.5rem;
-  overflow-y: auto;
+  overflow: hidden; /* Option 2 : Pas de scroll dans le conteneur principal */
   background-color: #f8fafc;
 }
 
@@ -277,7 +278,7 @@ body {
    ========================================================================== */
 .corps-app {
   display: flex;
-  height: 580px;
+  height: calc(100vh - 120px); /* Hauteur ajustée dynamiquement */
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background-color: white;
@@ -328,7 +329,7 @@ body {
 
 .liste-tickets {
   list-style: none;
-  overflow-y: auto;
+  overflow-y: hidden; /* Option 2 : Désactive le scroll de la liste */
   flex: 1;
 }
 
@@ -410,7 +411,7 @@ body {
 .fil-messages {
   flex: 1;
   padding: 1.25rem;
-  overflow-y: auto;
+  overflow-y: hidden; /* Option 2 : Désactive le scroll du fil de discussion */
   display: flex;
   flex-direction: column;
   gap: 0.75rem;

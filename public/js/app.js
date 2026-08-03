@@ -5,6 +5,7 @@ let socket = null;
 let ticketActifId = null;
 let minuteurFrappe = null;
 let filtreActif = 'tous';
+let tousLesTickets = []; // Tableau global pour stocker la liste et permettre le filtrage en mémoire
 
 // Récupération sécurisée du token et de l'utilisateur (Session / LocalStorage)
 const token = () => sessionStorage.getItem('token') || localStorage.getItem('token');
@@ -93,7 +94,10 @@ function connecterSocket() {
     console.error('Connexion Refusée :', err.message);
   });
 
-  socket.on('ticket:nouveau', ajouterTicketDansListe);
+  socket.on('ticket:nouveau', (ticket) => {
+    tousLesTickets.unshift(ticket);
+    afficherTicketsFiltres();
+  });
   socket.on('ticket:pris_en_charge', rafraichirTicket);
   socket.on('ticket:ferme', rafraichirTicket);
 
@@ -223,36 +227,93 @@ async function chargerTickets() {
   try {
     const reponse = await fetch('/api/tickets', { headers: { Authorization: `Bearer ${token()}` } });
     const { data } = await reponse.json();
-    container.innerHTML = '';
-    if (Array.isArray(data)) data.forEach(ajouterTicketDansListe);
+    
+    tousLesTickets = Array.isArray(data) ? data : [];
+    afficherTicketsFiltres();
   } catch (err) {
     console.error('Erreur chargement des tickets:', err);
   }
+}
+
+// Filtrage effectif selon le statut choisi dans le menu déroulant
+function afficherTicketsFiltres() {
+  const container = document.getElementById('liste-tickets');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  const ticketsFiltres = tousLesTickets.filter(ticket => {
+    if (filtreActif === 'tous') return true;
+    return String(ticket.statut).toLowerCase() === String(filtreActif).toLowerCase();
+  });
+
+  if (ticketsFiltres.length === 0) {
+    container.innerHTML = `<li style="padding: 1rem; text-align: center; color: #64748b; font-size: 0.85rem;">
+      Aucun ticket avec le statut "${filtreActif}"
+    </li>`;
+    return;
+  }
+
+  ticketsFiltres.forEach(ajouterTicketDansListe);
 }
 
 function ajouterTicketDansListe(ticket) {
   const container = document.getElementById('liste-tickets');
   if (!container) return;
 
+  const existant = container.querySelector(`[data-ticket-id="${ticket.id}"]`);
+  if (existant) existant.remove();
+
   const li = document.createElement('li');
   li.dataset.ticketId = ticket.id;
+  li.dataset.statut = ticket.statut;
   li.className = 'item-ticket';
-  li.innerHTML = `<strong>#${ticket.id}</strong> ${ticket.sujet} <span class="badge-statut ${ticket.statut}">${ticket.statut}</span>`;
-  li.addEventListener('click', () => ouvrirTicket(ticket));
-  container.prepend(li);
+
+  if (String(ticket.id) === String(ticketActifId)) {
+    li.classList.add('active');
+  }
+
+  li.innerHTML = `
+    <strong>#${ticket.id}</strong> ${ticket.sujet} 
+    <span class="badge-statut ${ticket.statut}">${ticket.statut}</span>
+  `;
+
+  li.addEventListener('click', () => {
+    document.querySelectorAll('#liste-tickets .item-ticket').forEach(el => el.classList.remove('active'));
+    li.classList.add('active');
+    ouvrirTicket(ticket);
+  });
+
+  container.appendChild(li);
 }
 
 function rafraichirTicket(ticket) {
-  const li = document.querySelector(`[data-ticket-id="${ticket.id}"]`);
-  if (li) {
-    const badge = li.querySelector('.badge-statut');
-    if (badge) {
-      badge.textContent = ticket.statut;
-      badge.className = `badge-statut ${ticket.statut}`;
+  const index = tousLesTickets.findIndex(t => String(t.id) === String(ticket.id));
+  if (index !== -1) {
+    tousLesTickets[index] = { ...tousLesTickets[index], ...ticket };
+  } else {
+    tousLesTickets.unshift(ticket);
+  }
+
+  afficherTicketsFiltres();
+
+  if (String(ticket.id) === String(ticketActifId)) {
+    const statutEl = document.getElementById('statut-ticket');
+    if (statutEl) {
+      statutEl.textContent = ticket.statut;
+      statutEl.className = `badge-statut ${ticket.statut}`;
     }
   }
-  const statutEl = document.getElementById('statut-ticket');
-  if (ticket.id === ticketActifId && statutEl) statutEl.textContent = ticket.statut;
+}
+
+function initialiserFiltreTickets() {
+  const selectFiltre = document.getElementById('filtre-statut');
+  if (selectFiltre) {
+    selectFiltre.addEventListener('change', (e) => {
+      filtreActif = e.target.value;
+      afficherTicketsFiltres();
+    });
+  }
 }
 
 async function ouvrirTicket(ticket) {
@@ -267,7 +328,10 @@ async function ouvrirTicket(ticket) {
   const sujetEl = document.getElementById('sujet-ticket');
   const statutEl = document.getElementById('statut-ticket');
   if (sujetEl) sujetEl.textContent = `#${ticket.id} - ${ticket.sujet}`;
-  if (statutEl) statutEl.textContent = ticket.statut;
+  if (statutEl) {
+    statutEl.textContent = ticket.statut;
+    statutEl.className = `badge-statut ${ticket.statut}`;
+  }
 
   // Rejoindre la room de ce ticket pour recevoir tous les messages en temps réel
   if (socket && socket.connected) {
@@ -622,6 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     initialiserInterfaceParRole();
     connecterSocket();
+    initialiserFiltreTickets();
     chargerTickets();
     initialiserFormulaireMessage();
 

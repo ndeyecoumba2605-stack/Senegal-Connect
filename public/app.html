@@ -426,26 +426,25 @@
       }
     });
 
-    // --- FONCTION DE CHARGEMENT DU DASHBOARD CLIENT ---
+    // --- FONCTION DE CHARGEMENT DU DASHBOARD CLIENT CORRIGÉE ---
     async function chargerTableauDeBordClient() {
       const token = sessionStorage.getItem('token') || localStorage.getItem('token');
       const u = window.currentUser;
       
-      // Récupère l'ID peu importe son nom dans l'objet (id ou utilisateur_id)
-      const userId = u?.id || u?.utilisateur_id;
-      if (!userId) return;
+      const clientId = u?.client_id || u?.id;
+      if (!clientId) return;
 
       try {
-        // S'assure que l'URL est bien /api/clients/ suivi de l'ID numérique
-        const res = await fetch(`/api/clients/${userId}`, {
+        const res = await fetch(`/api/clients/${clientId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
         if (res.ok) {
           const data = await res.json();
           
-          document.getElementById('statClientForfait').textContent = data.forfait || data.nom_forfait || 'Passeport Data';
-          document.getElementById('statClientData').textContent = data.solde_data || '0 Go';
+          // Correspondance exacte avec les clés JSON renvoyées par le back-end
+          document.getElementById('statClientForfait').textContent = data.forfait_nom || 'Passeport Data';
+          document.getElementById('statClientData').textContent = data.quota_data_go ? `${data.quota_data_go} Go` : '0 Go';
           document.getElementById('statClientFacture').textContent = data.derniere_facture ? `${data.derniere_facture} FCFA` : '0 FCFA';
           document.getElementById('statClientTickets').textContent = data.nb_tickets || 0;
         }
@@ -453,6 +452,7 @@
         console.error('Erreur chargement dashboard client:', err);
       }
     }
+
     // Fonction pour récupérer et afficher les vrais clients dans le tableau Admin
     async function chargerVraisClients() {
       const token = sessionStorage.getItem('token') || localStorage.getItem('token');

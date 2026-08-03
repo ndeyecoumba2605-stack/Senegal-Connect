@@ -4,16 +4,29 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20 
   const conditions = [];
   const valeurs = [];
 
-  if (statut) { valeurs.push(statut); conditions.push(`statut = $${valeurs.length}`); }
-  if (agentId) { valeurs.push(agentId); conditions.push(`agent_id = $${valeurs.length}`); }
-  if (clientId) { valeurs.push(clientId); conditions.push(`client_id = $${valeurs.length}`); }
+  if (statut) { valeurs.push(statut); conditions.push(`t.statut = $${valeurs.length}`); }
+  if (agentId) { valeurs.push(agentId); conditions.push(`t.agent_id = $${valeurs.length}`); }
+  
+  // Si clientId est fourni (id de utilisateurs), on filtre via la jointure clients
+  if (clientId) { 
+    valeurs.push(clientId); 
+    conditions.push(`c.utilisateur_id = $${valeurs.length}`); 
+  }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const offset = (page - 1) * limite;
 
-  const total = await db.query(`SELECT COUNT(*) FROM tickets ${where}`, valeurs);
+  const total = await db.query(
+    `SELECT COUNT(*) FROM tickets t JOIN clients c ON t.client_id = c.id ${where}`, 
+    valeurs
+  );
+  
   const donnees = await db.query(
-    `SELECT * FROM tickets ${where} ORDER BY ouvert_le DESC LIMIT $${valeurs.length + 1} OFFSET $${valeurs.length + 2}`,
+    `SELECT t.* FROM tickets t 
+     JOIN clients c ON t.client_id = c.id 
+     ${where} 
+     ORDER BY t.ouvert_le DESC 
+     LIMIT $${valeurs.length + 1} OFFSET $${valeurs.length + 2}`,
     [...valeurs, limite, offset]
   );
 
@@ -28,12 +41,40 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20 
   };
 }
 
-async function creerTicket({ clientId, sujet }) {
-  const resultat = await db.query(
-    `INSERT INTO tickets (client_id, sujet) VALUES ($1, $2) RETURNING *`,
-    [clientId, sujet]
+// 🎯 CRÉATION DU TICKET CONFORME À SCHEMA.SQL
+async function creerTicket({ clientId, sujet, description }) {
+  // 1. Récupérer l'ID réel dans la table 'clients' correspondant à l'utilisateur connecté (utilisateurs.id)
+  const clientRes = await db.query(
+    'SELECT id FROM clients WHERE utilisateur_id = $1',
+    [clientId]
   );
-  return resultat.rows[0];
+
+  if (clientRes.rows.length === 0) {
+    throw new Error("Impossible de créer le ticket : aucun profil 'client' associé à cet utilisateur.");
+  }
+
+  const realClientId = clientRes.rows[0].id;
+
+  // 2. Création du ticket lié à clients(id)
+  const resultat = await db.query(
+    `INSERT INTO tickets (client_id, sujet, statut, ouvert_le) 
+     VALUES ($1, $2, 'ouvert', NOW()) 
+     RETURNING *`,
+    [realClientId, sujet]
+  );
+  
+  const ticket = resultat.rows[0];
+
+  // 3. Insertion de la description comme premier message texte dans la table 'messages'
+  if (description && description.trim() !== '') {
+    await db.query(
+      `INSERT INTO messages (ticket_id, expediteur_id, type, contenu, envoye_le)
+       VALUES ($1, $2, 'texte', $3, NOW())`,
+      [ticket.id, clientId, description]
+    );
+  }
+
+  return ticket;
 }
 
 async function changerStatutTicket(id, statut) {
@@ -78,6 +119,16 @@ async function historiqueAppels(ticketId) {
   return resultat.rows;
 }
 
+async function creerMessage({ ticketId, expediteurId, contenu }) {
+  const resultat = await db.query(
+    `INSERT INTO messages (ticket_id, expediteur_id, type, contenu, envoye_le)
+     VALUES ($1, $2, 'texte', $3, NOW()) 
+     RETURNING *`,
+    [ticketId, expediteurId, contenu]
+  );
+  return resultat.rows[0];
+}
+
 module.exports = {
   listerTickets,
   creerTicket,
@@ -85,4 +136,5 @@ module.exports = {
   assignerAgent,
   historiqueMessages,
   historiqueAppels,
+  creerMessage,
 };

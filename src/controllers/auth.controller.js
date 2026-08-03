@@ -26,7 +26,6 @@ async function inscrire(req, res, next) {
 }
 
 // POST /api/auth/inscription-client — inscription PUBLIQUE (sans JWT admin requis)
-// Crée l'utilisateur (role='client') ET l'entrée clients dans une seule transaction
 async function inscrireClient(req, res, next) {
   try {
     const { nom, prenom, email, mot_de_passe, msisdn, forfait_id } = req.body;
@@ -58,7 +57,10 @@ async function inscrireClient(req, res, next) {
     res.status(201).json({
       token,
       expires_in: '24h',
-      utilisateur: resultat.utilisateur,
+      utilisateur: {
+        ...resultat.utilisateur,
+        client_id: resultat.client.id
+      },
       client: resultat.client,
     });
   } catch (err) {
@@ -82,6 +84,15 @@ async function connecter(req, res, next) {
       return res.status(401).json({ message: 'Identifiants incorrects' });
     }
 
+    // Récupérer le client_id si l'utilisateur est un client
+    let clientId = null;
+    if (utilisateur.role === 'client') {
+      const clientRes = await query('SELECT id FROM clients WHERE utilisateur_id = $1', [utilisateur.id]);
+      if (clientRes.rows.length > 0) {
+        clientId = clientRes.rows[0].id;
+      }
+    }
+
     const token = jwt.sign(
       { id: utilisateur.id, nom: utilisateur.nom, email: utilisateur.email, role: utilisateur.role },
       process.env.JWT_SECRET,
@@ -91,7 +102,14 @@ async function connecter(req, res, next) {
     res.json({
       token,
       expires_in: '24h',
-      utilisateur: { id: utilisateur.id, nom: utilisateur.nom, prenom: utilisateur.prenom, email: utilisateur.email, role: utilisateur.role },
+      utilisateur: { 
+        id: utilisateur.id, 
+        client_id: clientId, // ID direct de la table clients
+        nom: utilisateur.nom, 
+        prenom: utilisateur.prenom, 
+        email: utilisateur.email, 
+        role: utilisateur.role 
+      },
     });
   } catch (err) {
     next(err);

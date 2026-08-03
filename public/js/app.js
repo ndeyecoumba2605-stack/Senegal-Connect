@@ -27,7 +27,7 @@ function connecterSocket() {
 
   socket = io({ 
     auth: { token: jwt },
-    transports: ['polling', 'websocket'] // <--- Très important pour synchroniser avec le serveur
+    transports: ['polling', 'websocket']
   });
 
   socket.on('connect', () => {
@@ -94,7 +94,6 @@ function initialiserInterfaceParRole() {
   if (activeDash) {
     activeDash.style.display = 'block';
   } else {
-    // Si l'élément dash-client / dash-agent / dash-admin n'est pas présent
     const dashFallback = document.getElementById('dash-client') || document.querySelector('.role-dash');
     if (dashFallback) dashFallback.style.display = 'block';
   }
@@ -126,12 +125,26 @@ async function chargerStatsParRole() {
         if (document.getElementById('statAgentMesTickets')) document.getElementById('statAgentMesTickets').textContent = tickets.filter(t => t.statut === 'en_cours').length;
       }
     } else if (role === 'client') {
-      const res = await fetch('/api/auth/profil', { headers: { Authorization: `Bearer ${token()}` } });
+      // UTILISATION DE L'ID DIRECT DU CLIENT (client_id) AVEC FALLBACK SUR ID UTILISATEUR
+      const clientId = user.client_id || user.id;
+      const res = await fetch(`/api/clients/${clientId}`, { headers: { Authorization: `Bearer ${token()}` } });
       if (res.ok) {
         const profil = await res.json();
-        if (document.getElementById('statClientForfait')) document.getElementById('statClientForfait').textContent = profil.forfait ? profil.forfait.nom : 'Passeport Data';
-        if (document.getElementById('statClientData')) document.getElementById('statClientData').textContent = profil.data_restante || '15.5 Go';
-        if (document.getElementById('statClientFacture')) document.getElementById('statClientFacture').textContent = profil.derniere_facture ? `${profil.derniere_facture.montant_fcfa} FCFA` : '12 500 FCFA';
+        
+        // Affichage du nom du forfait (ex: "Forfait Confort")
+        if (document.getElementById('statClientForfait')) {
+          document.getElementById('statClientForfait').textContent = profil.forfait_nom || 'Standard';
+        }
+        
+        // Affichage du quota data (ex: "10 Go")
+        if (document.getElementById('statClientData')) {
+          document.getElementById('statClientData').textContent = profil.quota_data_go ? `${profil.quota_data_go} Go` : '0 Go';
+        }
+        
+        // Affichage de la dernière facture
+        if (document.getElementById('statClientFacture')) {
+          document.getElementById('statClientFacture').textContent = profil.derniere_facture ? `${profil.derniere_facture.montant_fcfa} FCFA` : 'Aucune facture';
+        }
       }
     }
   } catch (error) {
@@ -289,8 +302,7 @@ function deconnexion() {
   sessionStorage.removeItem('utilisateur');
   sessionStorage.removeItem('user');
   if (socket) socket.disconnect();
-  // Vérification de la page de connexion de destination
-  window.location.replace('index.html'); // Remplacez par 'connexion.html' si votre page d'accueil de login porte ce nom exact
+  window.location.replace('index.html');
 }
 
 const btnDeconnexion = document.getElementById('btn-deconnexion') || document.getElementById('btnDeconnexion');
@@ -298,14 +310,12 @@ if (btnDeconnexion) {
   btnDeconnexion.addEventListener('click', deconnexion);
 }
 
-// Initialisation au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
   const user = utilisateur();
   const jwt = token();
 
   console.log("Vérification session -> Token:", jwt ? "OK" : "MANQUANT", "| User:", user);
 
-  // Si le token ou l'utilisateur n'existe pas dans le sessionStorage
   if (!jwt || !user) {
     console.warn("Session absente ou invalide. Redirection...");
     deconnexion();

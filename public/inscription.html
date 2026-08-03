@@ -16,7 +16,7 @@
 <section class="page-formulaire">
   <div class="motif-wax motif-wax--bas"></div>
   <div class="carte-formulaire">
-    <h2>🇸🇳 Créer un compte</h2>
+    <h2>🇸🇳 Créer un compte abonné</h2>
     <p class="sous-titre">Rejoignez Sénégal Connect en quelques secondes</p>
 
   <form id="form-inscription">
@@ -32,25 +32,37 @@
       <label>✉️ Email</label>
       <input id="champ-email" type="email" placeholder="vous@exemple.sn" autocomplete="username" required>
     </div>
+    
+    <!-- Champ requis par la table clients (MSISDN Sénégal) -->
     <div class="champ">
-      <label>Type de compte</label>
-      <select id="champ-role" required>
-        <option value="client">Client (abonné)</option>
-        <option value="agent">Agent support</option>
-        <option value="admin">Administrateur</option>
+      <label>📱 Numéro de téléphone (MSISDN)</label>
+      <input id="champ-msisdn" type="tel" placeholder="+221770000000" pattern="^\+221[0-9]{9}$" required>
+      <small style="color: #666; font-size: 0.85rem;">Format requis : +221 suivi de 9 chiffres</small>
+    </div>
+
+    <!-- Champ requis pour lier un forfait initial -->
+    <div class="champ">
+      <label>📦 Choisir un forfait</label>
+      <select id="champ-forfait" required>
+        <option value="" disabled selected>Sélectionnez un forfait</option>
+        <option value="1">Forfait Eco (2 Go / 60 min - 3 000 FCFA)</option>
+        <option value="2">Forfait Confort (10 Go / 300 min - 8 000 FCFA)</option>
+        <option value="3">Forfait Premium (30 Go / 1000 min - 15 000 FCFA)</option>
+        <option value="4">Forfait Illimite (50 Go / 3000 min - 25 000 FCFA)</option>
       </select>
     </div>
-  <div class="champ">
-    <label>🔒 Mot de passe</label>
-    <input id="champ-mdp" type="password" placeholder="Au moins 6 caractères" autocomplete="new-password" required minlength="6">
-  </div>
-  <div class="champ">
-    <label>🔒 Confirmer le mot de passe</label>
-    <input id="champ-mdp-confirmation" type="password" placeholder="••••••••" autocomplete="new-password" required minlength="6">
-  </div>
 
-  <button id="bouton-inscription" type="submit" class="bouton-form">Créer mon compte</button>
-  <p id="erreur-inscription" class="message-erreur"></p>
+    <div class="champ">
+      <label>🔒 Mot de passe</label>
+      <input id="champ-mdp" type="password" placeholder="Au moins 6 caractères" autocomplete="new-password" required minlength="6">
+    </div>
+    <div class="champ">
+      <label>🔒 Confirmer le mot de passe</label>
+      <input id="champ-mdp-confirmation" type="password" placeholder="••••••••" autocomplete="new-password" required minlength="6">
+    </div>
+
+    <button id="bouton-inscription" type="submit" class="bouton-form">Créer mon compte</button>
+    <p id="erreur-inscription" class="message-erreur"></p>
   </form>
 
     <div class="separateur-liens">
@@ -79,7 +91,8 @@
     bouton.textContent = 'Création...';
 
     try {
-      const reponse = await fetch('/api/auth/register', {
+      // Utilisation de la route dédiée '/api/auth/inscription-client'
+      const reponse = await fetch('/api/auth/inscription-client', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -87,13 +100,13 @@
           prenom: document.getElementById('champ-prenom').value,
           email: document.getElementById('champ-email').value,
           mot_de_passe: motDePasse,
-          role: document.getElementById('champ-role').value,
+          msisdn: document.getElementById('champ-msisdn').value,
+          forfait_id: parseInt(document.getElementById('champ-forfait').value, 10),
         }),
       });
       const donnees = await reponse.json();
 
       if (!reponse.ok) {
-        // Affiche la première erreur de validation, ou le message générique (ex: email déjà utilisé)
         erreur.textContent = donnees.erreurs?.[0]?.message || donnees.message || "Échec de l'inscription";
         return;
       }

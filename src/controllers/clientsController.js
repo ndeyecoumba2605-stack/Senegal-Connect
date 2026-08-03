@@ -57,26 +57,30 @@ async function obtenirDetail(req, res, next) {
   try {
     const { id } = req.params;
 
+    // Recherche par c.id ou c.utilisateur_id pour éviter le décalage d'ID
     const client = await query(
       `SELECT c.*, u.nom, u.prenom, u.email,
               f.nom AS forfait_nom, f.quota_data_go, f.quota_voix_min, f.prix_mensuel_fcfa
        FROM clients c
        JOIN utilisateurs u ON u.id = c.utilisateur_id
        LEFT JOIN forfaits f ON f.id = c.forfait_id
-       WHERE c.id = $1`,
+       WHERE c.id = $1 OR c.utilisateur_id = $1`,
       [id]
     );
 
     if (client.rows.length === 0) return res.status(404).json({ message: 'Client introuvable' });
 
+    // On récupère le véritable ID de la table clients pour les requêtes suivantes
+    const clientId = client.rows[0].id;
+
     const derniereFacture = await query(
       `SELECT * FROM factures WHERE client_id = $1 ORDER BY date_emission DESC LIMIT 1`,
-      [id]
+      [clientId]
     );
 
     const ticketEnCours = await query(
       `SELECT * FROM tickets WHERE client_id = $1 AND statut != 'ferme' ORDER BY ouvert_le DESC LIMIT 1`,
-      [id]
+      [clientId]
     );
 
     res.json({
@@ -88,7 +92,6 @@ async function obtenirDetail(req, res, next) {
     next(err);
   }
 }
-
 async function creer(req, res, next) {
   try {
     const { nom, prenom, email, msisdn, forfait_id } = req.body;

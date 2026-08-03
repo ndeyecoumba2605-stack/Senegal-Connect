@@ -20,41 +20,57 @@ async function demarrerAppel(destinataireId, ticketId, type) {
   ouvrirInterfaceAppel();
 }
 
-document.getElementById('btn-appel-audio').addEventListener('click', () => {
-  if (ticketActifId) demarrerAppel(idAutrePartieDuTicket(), ticketActifId, 'audio');
-});
-document.getElementById('btn-appel-video').addEventListener('click', () => {
-  if (ticketActifId) demarrerAppel(idAutrePartieDuTicket(), ticketActifId, 'video');
-});
+const btnAppelAudio = document.getElementById('btn-appel-audio');
+if (btnAppelAudio) {
+  btnAppelAudio.addEventListener('click', () => {
+    if (ticketActifId) demarrerAppel(idAutrePartieDuTicket(), ticketActifId, 'audio');
+  });
+}
+
+const btnAppelVideo = document.getElementById('btn-appel-video');
+if (btnAppelVideo) {
+  btnAppelVideo.addEventListener('click', () => {
+    if (ticketActifId) demarrerAppel(idAutrePartieDuTicket(), ticketActifId, 'video');
+  });
+}
 
 function idAutrePartieDuTicket() {
-  // TODO : récupérer l'agent_id ou client_id du ticket actif selon le rôle connecté
   return window.ticketActifAutrePartieId;
 }
 
 window.gererAppelEntrant = function ({ appelId, initiateur, peerIdInitiateur, type }) {
   appelEnCours = { appelId, autrePartieId: initiateur.id, peerIdDistant: peerIdInitiateur };
-  document.getElementById('texte-appel-entrant').textContent = `Appel ${type} de ${initiateur.nom}`;
-  document.getElementById('modale-appel-entrant').classList.remove('cache');
+  
+  const texteAppelEntrant = document.getElementById('texte-appel-entrant');
+  if (texteAppelEntrant) texteAppelEntrant.textContent = `Appel ${type} de ${initiateur.nom}`;
+  
+  const modaleAppelEntrant = document.getElementById('modale-appel-entrant');
+  if (modaleAppelEntrant) modaleAppelEntrant.classList.remove('cache');
 
-  document.getElementById('btn-accepter-appel').onclick = async () => {
-    streamLocal = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
-    afficherVideoLocale(streamLocal);
-    socket.emit('appel:accepter', { appelId, initiateurId: initiateur.id, peerId: window.monPeerId });
-    document.getElementById('modale-appel-entrant').classList.add('cache');
-    ouvrirInterfaceAppel();
+  const btnAccepterAppel = document.getElementById('btn-accepter-appel');
+  if (btnAccepterAppel) {
+    btnAccepterAppel.onclick = async () => {
+      streamLocal = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
+      afficherVideoLocale(streamLocal);
+      socket.emit('appel:accepter', { appelId, initiateurId: initiateur.id, peerId: window.monPeerId });
+      if (modaleAppelEntrant) modaleAppelEntrant.classList.add('cache');
+      ouvrirInterfaceAppel();
 
-    peer.on('call', (appelEntrant) => {
-      appelEntrant.answer(streamLocal);
-      appelEntrant.on('stream', afficherVideoDistante);
-      connexionMedia = appelEntrant;
-    });
-  };
+      peer.on('call', (appelEntrant) => {
+        appelEntrant.answer(streamLocal);
+        appelEntrant.on('stream', afficherVideoDistante);
+        connexionMedia = appelEntrant;
+      });
+    };
+  }
 
-  document.getElementById('btn-refuser-appel').onclick = () => {
-    socket.emit('appel:refuser', { appelId, initiateurId: initiateur.id });
-    document.getElementById('modale-appel-entrant').classList.add('cache');
-  };
+  const btnRefuserAppel = document.getElementById('btn-refuser-appel');
+  if (btnRefuserAppel) {
+    btnRefuserAppel.onclick = () => {
+      socket.emit('appel:refuser', { appelId, initiateurId: initiateur.id });
+      if (modaleAppelEntrant) modaleAppelEntrant.classList.add('cache');
+    };
+  }
 };
 
 window.gererAppelAccepte = function ({ appelId, peerId }) {
@@ -73,17 +89,30 @@ window.gererAppelTermine = function () {
   fermerInterfaceAppel();
 };
 
-function afficherVideoLocale(stream) { document.getElementById('video-locale').srcObject = stream; }
+function afficherVideoLocale(stream) { 
+  const videoLocale = document.getElementById('video-locale');
+  if (videoLocale) videoLocale.srcObject = stream; 
+}
+
 function afficherVideoDistante(stream) {
-  document.getElementById('video-distante').srcObject = stream;
+  const videoDistante = document.getElementById('video-distante');
+  if (videoDistante) videoDistante.srcObject = stream;
   demarrerChrono();
 }
 
-function ouvrirInterfaceAppel() { document.getElementById('interface-appel').classList.remove('cache'); }
+function ouvrirInterfaceAppel() { 
+  const interfaceAppel = document.getElementById('interface-appel');
+  if (interfaceAppel) interfaceAppel.classList.remove('cache'); 
+}
+
 function fermerInterfaceAppel() {
-  document.getElementById('interface-appel').classList.add('cache');
+  const interfaceAppel = document.getElementById('interface-appel');
+  if (interfaceAppel) interfaceAppel.classList.add('cache');
   clearInterval(chronoInterval);
-  document.getElementById('chrono-appel').textContent = '00:00';
+  
+  const chronoAppel = document.getElementById('chrono-appel');
+  if (chronoAppel) chronoAppel.textContent = '00:00';
+
   if (streamLocal) streamLocal.getTracks().forEach((t) => t.stop());
   if (connexionMedia) connexionMedia.close();
 }
@@ -94,50 +123,72 @@ function demarrerChrono() {
     const secondes = Math.floor((Date.now() - debut) / 1000);
     const mm = String(Math.floor(secondes / 60)).padStart(2, '0');
     const ss = String(secondes % 60).padStart(2, '0');
-    document.getElementById('chrono-appel').textContent = `${mm}:${ss}`;
-    appelEnCours.dureeSecondes = secondes;
+    
+    const chronoAppel = document.getElementById('chrono-appel');
+    if (chronoAppel) chronoAppel.textContent = `${mm}:${ss}`;
+    
+    if (appelEnCours) appelEnCours.dureeSecondes = secondes;
   }, 1000);
 }
 
-document.getElementById('btn-toggle-micro').addEventListener('click', () => {
-  const piste = streamLocal.getAudioTracks()[0];
-  piste.enabled = !piste.enabled;
-  socket.emit('appel:controle', { ticketId: ticketActifId, micro: !piste.enabled });
-});
+const btnToggleMicro = document.getElementById('btn-toggle-micro');
+if (btnToggleMicro) {
+  btnToggleMicro.addEventListener('click', () => {
+    if (!streamLocal) return;
+    const piste = streamLocal.getAudioTracks()[0];
+    if (piste) {
+      piste.enabled = !piste.enabled;
+      socket.emit('appel:controle', { ticketId: ticketActifId, micro: !piste.enabled });
+    }
+  });
+}
 
-document.getElementById('btn-toggle-camera').addEventListener('click', () => {
-  const piste = streamLocal.getVideoTracks()[0];
-  if (!piste) return;
-  piste.enabled = !piste.enabled;
-  socket.emit('appel:controle', { ticketId: ticketActifId, video: !piste.enabled });
-});
+const btnToggleCamera = document.getElementById('btn-toggle-camera');
+if (btnToggleCamera) {
+  btnToggleCamera.addEventListener('click', () => {
+    if (!streamLocal) return;
+    const piste = streamLocal.getVideoTracks()[0];
+    if (!piste) return;
+    piste.enabled = !piste.enabled;
+    socket.emit('appel:controle', { ticketId: ticketActifId, video: !piste.enabled });
+  });
+}
 
-document.getElementById('btn-partage-ecran').addEventListener('click', async () => {
-  const streamEcran = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 } });
-  const pisteEcran = streamEcran.getVideoTracks()[0];
+const btnPartageEcran = document.getElementById('btn-partage-ecran');
+if (btnPartageEcran) {
+  btnPartageEcran.addEventListener('click', async () => {
+    if (!connexionMedia) return;
+    const streamEcran = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 } });
+    const pisteEcran = streamEcran.getVideoTracks()[0];
 
-  const sender = connexionMedia.peerConnection.getSenders().find((s) => s.track && s.track.kind === 'video');
-  await sender.replaceTrack(pisteEcran);
-  socket.emit('appel:controle', { ticketId: ticketActifId, partageEcran: true });
+    const sender = connexionMedia.peerConnection.getSenders().find((s) => s.track && s.track.kind === 'video');
+    if (sender) {
+      await sender.replaceTrack(pisteEcran);
+      socket.emit('appel:controle', { ticketId: ticketActifId, partageEcran: true });
 
-  pisteEcran.onended = async () => {
-    const streamCamera = await navigator.mediaDevices.getUserMedia({ video: true });
-    await sender.replaceTrack(streamCamera.getVideoTracks()[0]);
-    socket.emit('appel:controle', { ticketId: ticketActifId, partageEcran: false });
-  };
-});
+      pisteEcran.onended = async () => {
+        const streamCamera = await navigator.mediaDevices.getUserMedia({ video: true });
+        await sender.replaceTrack(streamCamera.getVideoTracks()[0]);
+        socket.emit('appel:controle', { ticketId: ticketActifId, partageEcran: false });
+      };
+    }
+  });
+}
 
 window.gererControleDistant = function ({ micro, video, partageEcran }) {
   // TODO : afficher les icônes 🔇 / 📷 OFF sur la vidéo distante selon ces booléens
 };
 
-document.getElementById('btn-raccrocher').addEventListener('click', () => {
-  if (appelEnCours) {
-    socket.emit('appel:terminer', {
-      appelId: appelEnCours.appelId,
-      dureeSecondes: appelEnCours.dureeSecondes || 0,
-      autrePartieId: appelEnCours.autrePartieId,
-    });
-  }
-  fermerInterfaceAppel();
-});
+const btnRaccrocher = document.getElementById('btn-raccrocher');
+if (btnRaccrocher) {
+  btnRaccrocher.addEventListener('click', () => {
+    if (appelEnCours) {
+      socket.emit('appel:terminer', {
+        appelId: appelEnCours.appelId,
+        dureeSecondes: appelEnCours.dureeSecondes || 0,
+        autrePartieId: appelEnCours.autrePartieId,
+      });
+    }
+    fermerInterfaceAppel();
+  });
+}

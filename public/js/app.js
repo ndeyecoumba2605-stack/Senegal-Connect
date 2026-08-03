@@ -274,6 +274,9 @@ async function ouvrirTicket(ticket) {
     socket.emit('ticket:assigner', { ticketId: ticket.id });
   }
 
+  // Charge les détails complets de l'abonné associé au ticket
+  chargerDetailsAbonne(ticket.client_id || ticket.user_id);
+
   const fil = document.getElementById('fil-messages');
   if (fil) fil.innerHTML = '';
 
@@ -283,6 +286,66 @@ async function ouvrirTicket(ticket) {
     if (Array.isArray(data)) data.forEach(afficherMessage);
   } catch (e) {
     console.error('Erreur chargement messages:', e);
+  }
+}
+
+// =========================================================================
+// RECUPERATION ET AFFICHAGE DES DETAILS ABONNE
+// =========================================================================
+async function chargerDetailsAbonne(clientId) {
+  const container = document.getElementById('details-abonne-container');
+  if (!container) return;
+
+  if (!clientId) {
+    container.innerHTML = `<p style="color: #64748b; font-size: 0.9rem;">Aucun abonné associé à ce ticket.</p>`;
+    return;
+  }
+
+  container.innerHTML = `<p style="color: #64748b; font-size: 0.9rem;">Chargement des données abonnés...</p>`;
+
+  try {
+    const res = await fetch(`/api/clients/${clientId}`, {
+      headers: { Authorization: `Bearer ${token()}` }
+    });
+
+    if (res.ok) {
+      const client = await res.json();
+
+      container.innerHTML = `
+        <div class="fiche-abonne" style="display: flex; flex-direction: column; gap: 12px; font-size: 0.9rem; color: #334155;">
+          <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+            <strong style="font-size: 1.05rem; color: #0f172a; display: block;">${client.prenom || ''} ${client.nom || client.email || 'Client #' + clientId}</strong>
+            <span style="font-size: 0.8rem; color: #64748b;">📧 ${client.email || 'Non renseigné'}</span><br>
+            <span style="font-size: 0.8rem; color: #64748b;">📞 ${client.msisdn || client.telephone || 'Non renseigné'}</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div>
+              <span style="color: #64748b; font-size: 0.8rem;">Forfait Actif :</span><br>
+              <strong>${client.forfait_nom || 'Standard'}</strong>
+            </div>
+
+            <div>
+              <span style="color: #64748b; font-size: 0.8rem;">Solde Data :</span><br>
+              <strong style="color: #10b981;">${client.quota_data_go ? client.quota_data_go + ' Go' : '0 Go'}</strong>
+            </div>
+
+            <div>
+              <span style="color: #64748b; font-size: 0.8rem;">Dernière Facture :</span><br>
+              <strong style="color: ${client.facture_impayee ? '#ef4444' : '#059669'};">
+                ${client.derniere_facture ? client.derniere_facture + ' FCFA' : '0 FCFA'} 
+                ${client.facture_impayee ? '(Impayée)' : '(Réglée)'}
+              </strong>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `<p style="color: #ef4444; font-size: 0.85rem;">Impossible de charger les infos abonné.</p>`;
+    }
+  } catch (err) {
+    console.error("Erreur détails abonné :", err);
+    container.innerHTML = `<p style="color: #ef4444; font-size: 0.85rem;">Erreur de connexion serveur.</p>`;
   }
 }
 

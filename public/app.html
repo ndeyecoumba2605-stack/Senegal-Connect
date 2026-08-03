@@ -292,9 +292,9 @@
               </main>
 
               <!-- Panneau Détails Client (Agent & Admin) -->
-              <aside class="colonne-details role-admin-agent" id="colonne-details" style="display: none;">
+              <aside class="colonne-details role-admin-agent" id="colonne-details">
                 <h2>Détails Abonné</h2>
-                <div id="details-client">
+                <div id="details-abonne-container">
                   <p class="texte-neutre">Sélectionnez un ticket pour afficher les informations de l'abonné.</p>
                 </div>
               </aside>
@@ -335,42 +335,43 @@
   </div>
 
   <!-- ================= MODALE APPEL VIDÉO / AUDIO (WEBRTC) ================= -->
-<div id="modal-appel" class="modal-overlay cache" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 9999; align-items: center; justify-content: center;">
-  <div class="modal-contenu" style="background: #1e293b; color: white; padding: 2rem; border-radius: 16px; width: 92%; max-width: 680px; text-align: center; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
-    
-    <h3 id="titre-appel" style="margin-bottom: 1.5rem; font-size: 1.25rem; font-weight: 600;">Démarrage de l'appel...</h3>
-    
-    <!-- 1. CONTENEUR FLUX VIDÉO (Mode Visio) -->
-    <div id="container-flux-video" style="position: relative; width: 100%; height: 360px; background: #0f172a; border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: center;">
-      <!-- Vidéo Distante -->
-      <video id="video-distante" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; background: #000;"></video>
-      <!-- Vidéo Locale -->
-      <video id="video-locale" autoplay playsinline muted style="position: absolute; bottom: 12px; right: 12px; width: 130px; height: 95px; border-radius: 8px; border: 2px solid #ffffff; object-fit: cover; background: #1e293b;"></video>
-    </div>
-
-    <!-- 2. INTERFACE AUDIO (Mode Vocal Uniquement) -->
-    <div id="interface-audio-uniquement" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 220px; background: #0f172a; border-radius: 12px; margin-bottom: 1.5rem;">
-      <div style="width: 80px; height: 80px; border-radius: 50%; background: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 1rem; box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);">
-        <i class="fa-solid fa-user"></i>
+  <div id="modal-appel" class="modal-overlay cache" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 9999; align-items: center; justify-content: center;">
+    <div class="modal-contenu" style="background: #1e293b; color: white; padding: 2rem; border-radius: 16px; width: 92%; max-width: 680px; text-align: center; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+      
+      <h3 id="titre-appel" style="margin-bottom: 1.5rem; font-size: 1.25rem; font-weight: 600;">Démarrage de l'appel...</h3>
+      
+      <!-- 1. CONTENEUR FLUX VIDÉO (Mode Visio) -->
+      <div id="container-flux-video" style="position: relative; width: 100%; height: 360px; background: #0f172a; border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: center;">
+        <!-- Vidéo Distante -->
+        <video id="video-distante" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; background: #000;"></video>
+        <!-- Vidéo Locale -->
+        <video id="video-locale" autoplay playsinline muted style="position: absolute; bottom: 12px; right: 12px; width: 130px; height: 95px; border-radius: 8px; border: 2px solid #ffffff; object-fit: cover; background: #1e293b;"></video>
       </div>
-      <p style="color: #94a3b8; font-size: 0.95rem;">Appel vocal sécurisé en cours...</p>
-    </div>
 
-    <!-- Contrôles d'Appel -->
-    <div style="display: flex; gap: 1rem; justify-content: center; align-items: center;">
-      <button id="btn-couper-mic" class="btn" style="background: #334155; color: white; width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 1.1rem;" title="Microphone">
-        <i class="fa-solid fa-microphone"></i>
-      </button>
-      <button id="btn-couper-cam" class="btn" style="background: #334155; color: white; width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 1.1rem;" title="Caméra">
-        <i class="fa-solid fa-video"></i>
-      </button>
-      <button id="btn-raccrocher" class="btn" style="background: #ef4444; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" title="Terminer l'appel">
-        <i class="fa-solid fa-phone-slash"></i> Raccrocher
-      </button>
-    </div>
+      <!-- 2. INTERFACE AUDIO (Mode Vocal Uniquement) -->
+      <div id="interface-audio-uniquement" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 220px; background: #0f172a; border-radius: 12px; margin-bottom: 1.5rem;">
+        <div style="width: 80px; height: 80px; border-radius: 50%; background: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 1rem; box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);">
+          <i class="fa-solid fa-user"></i>
+        </div>
+        <p style="color: #94a3b8; font-size: 0.95rem;">Appel vocal sécurisé en cours...</p>
+      </div>
 
+      <!-- Contrôles d'Appel -->
+      <div style="display: flex; gap: 1rem; justify-content: center; align-items: center;">
+        <button id="btn-couper-mic" class="btn" style="background: #334155; color: white; width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 1.1rem;" title="Microphone">
+          <i class="fa-solid fa-microphone"></i>
+        </button>
+        <button id="btn-couper-cam" class="btn" style="background: #334155; color: white; width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 1.1rem;" title="Caméra">
+          <i class="fa-solid fa-video"></i>
+        </button>
+        <button id="btn-raccrocher" class="btn" style="background: #ef4444; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" title="Terminer l'appel">
+          <i class="fa-solid fa-phone-slash"></i> Raccrocher
+        </button>
+      </div>
+
+    </div>
   </div>
-</div>
+
   <!-- ================= SCRIPTS & CONFIGURATION ================= -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>

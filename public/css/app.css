@@ -31,7 +31,7 @@ body {
   width: 100vw;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Option 2 : Désactive le défilement général de la page */
+  overflow: hidden; /* Empêche le défilement global de la page */
 }
 
 /* Utilitaires généraux */
@@ -58,6 +58,7 @@ body {
   padding: 0 1.5rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   z-index: 10;
+  flex-shrink: 0;
 }
 
 .top-bar .logo {
@@ -115,7 +116,7 @@ body {
 .app-layout {
   display: flex;
   flex: 1;
-  height: calc(100vh - 60px);
+  min-height: 0; /* Important pour autoriser Flexbox à réduire l'espace */
   overflow: hidden;
 }
 
@@ -126,6 +127,7 @@ body {
   padding: 1rem 0;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .sidebar-menu {
@@ -166,41 +168,67 @@ body {
   width: 20px;
 }
 
-/* zone de contenu */
+/* Zone de contenu principal */
 .main-content {
   flex: 1;
   padding: 1.5rem;
-  overflow: hidden; /* Option 2 : Pas de scroll dans le conteneur principal */
+  overflow: hidden;
   background-color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .page-section {
   display: none;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .page-section.active {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 /* ==========================================================================
    4. CARTOUCHE / CARDS ET DASHBOARD MULTI-RÔLES
    ========================================================================== */
+.role-dash {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .card-container {
   background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   border: 1px solid var(--border-color);
   overflow: hidden;
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .card-header-stripe {
   height: 4px;
   background: linear-gradient(90deg, var(--primary-color), var(--accent-color), var(--secondary-color));
+  flex-shrink: 0;
 }
 
 .card-body {
   padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .card-title {
@@ -208,12 +236,14 @@ body {
   font-weight: 700;
   color: var(--text-dark);
   margin-bottom: 0.25rem;
+  flex-shrink: 0;
 }
 
 .card-subtitle {
   font-size: 0.875rem;
   color: var(--text-muted);
   margin-bottom: 1.5rem;
+  flex-shrink: 0;
 }
 
 /* Grille de Statistiques */
@@ -221,6 +251,8 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.25rem;
+  margin-bottom: 1.5rem;
+  flex-shrink: 0;
 }
 
 .stat-card {
@@ -255,6 +287,11 @@ body {
 }
 
 /* Tableaux génériques */
+.table-responsive {
+  overflow: auto;
+  flex: 1;
+}
+
 .styled-table {
   width: 100%;
   border-collapse: collapse;
@@ -274,11 +311,12 @@ body {
 }
 
 /* ==========================================================================
-   5. ESPACE SUPPORT & CHAT TEMPS RÉEL (INNER LAYOUT)
+   5. ESPACE SUPPORT & CHAT TEMPS RÉEL (INNER LAYOUT FIXÉ)
    ========================================================================== */
 .corps-app {
   display: flex;
-  height: calc(100vh - 120px); /* Hauteur ajustée dynamiquement */
+  flex: 1;
+  min-height: 0; /* Autorise le conteneur à prendre exactement la hauteur restante */
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background-color: white;
@@ -292,6 +330,7 @@ body {
   display: flex;
   flex-direction: column;
   background-color: #fafafa;
+  flex-shrink: 0;
 }
 
 .entete-colonne {
@@ -300,6 +339,7 @@ body {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .entete-colonne h2 { font-size: 1rem; font-weight: 700; }
@@ -318,6 +358,7 @@ body {
 .filtres-tickets {
   padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .filtres-tickets select {
@@ -329,7 +370,7 @@ body {
 
 .liste-tickets {
   list-style: none;
-  overflow-y: hidden; /* Option 2 : Désactive le scroll de la liste */
+  overflow-y: auto;
   flex: 1;
 }
 
@@ -351,6 +392,9 @@ body {
   flex-direction: column;
   background-color: #ffffff;
   position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chat-vide {
@@ -366,6 +410,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .entete-ticket {
@@ -375,6 +421,7 @@ body {
   justify-content: space-between;
   align-items: center;
   background-color: #f8fafc;
+  flex-shrink: 0; /* Bloque le haut du chat */
 }
 
 .actions-ticket {
@@ -410,8 +457,9 @@ body {
 /* Fil de discussion */
 .fil-messages {
   flex: 1;
+  min-height: 0; /* Force les messages à se restreindre pour faire de la place à la saisie */
   padding: 1.25rem;
-  overflow-y: hidden; /* Option 2 : Désactive le scroll du fil de discussion */
+  overflow-y: auto; /* Active le scroll uniquement ici au besoin */
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -446,9 +494,10 @@ body {
   font-size: 0.75rem;
   font-style: italic;
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 
-/* Zone de Saisie */
+/* Zone de Saisie (Toujours ancrée en bas) */
 .zone-saisie {
   padding: 0.75rem 1rem;
   border-top: 1px solid var(--border-color);
@@ -456,6 +505,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   background: white;
+  flex-shrink: 0; /* Bloque la barre de saisie pour qu'elle ne disparaisse jamais */
 }
 
 .zone-saisie input[type="text"] {
@@ -499,6 +549,8 @@ body {
   border-left: 1px solid var(--border-color);
   padding: 1rem;
   background-color: #fafafa;
+  overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .colonne-details h2 {
@@ -592,6 +644,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
+  flex-shrink: 0;
 }
 
 #chrono-appel {

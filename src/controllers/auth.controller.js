@@ -173,4 +173,4 @@ async function reinitialiserMdp(req, res, next) {
   }
 }
 
-module.exports = { inscrire, inscrireClient, connecter, profil, demanderReinitialisation, reinitialiserMotDePasse };
+module.exports = { inscrire, inscrireClient, connecter, profil, demanderReinitialisation, reinitialiserMdp };

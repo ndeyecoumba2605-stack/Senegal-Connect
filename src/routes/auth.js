@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/authController');
-const { verifierJWT, garderRole } = require('../middlewares/auth');
+const authController = require('../controllers/auth.controller');
+const { verifierJWT, garderRole } = require('../middleware/auth');
 
 /**
  * @openapi

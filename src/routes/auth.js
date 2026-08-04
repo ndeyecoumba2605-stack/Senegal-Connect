@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/auth.controller');
+const authController = require('../controllers/authController');
 const { verifierJWT, garderRole } = require('../middleware/auth');
 
 /**
@@ -23,7 +23,7 @@ const { verifierJWT, garderRole } = require('../middleware/auth');
 router.post('/register', (req, res, next) => {
   // Sécurisation : Forcer le rôle 'client' pour toute inscription publique
   req.body.role = 'client';
-  auth.controller.inscrire(req, res, next);
+  authController.inscrire(req, res, next);
 });
 
 /**
@@ -43,7 +43,7 @@ router.post('/register', (req, res, next) => {
  *       200:
  *         description: Connexion réussie, jeton retourné
  */
-router.post('/login', auth.controller.connecter);
+router.post('/login', authController.connecter);
 
 /**
  * @openapi
@@ -52,7 +52,7 @@ router.post('/login', auth.controller.connecter);
  *     summary: Demander un jeton de réinitialisation de mot de passe
  *     tags: [Authentification]
  */
-router.post('/demande-reinitialisation-mdp', auth.controller.demandeReinitialisation);
+router.post('/demande-reinitialisation-mdp', authController.demandeReinitialisation);
 
 /**
  * @openapi
@@ -61,6 +61,6 @@ router.post('/demande-reinitialisation-mdp', auth.controller.demandeReinitialisa
  *     summary: Réinitialiser le mot de passe avec le jeton
  *     tags: [Authentification]
  */
-router.post('/reinitialiser-mot-de-passe', auth.controller.reinitialiserMdp);
+router.post('/reinitialiser-mot-de-passe', authController.reinitialiserMdp);
 
 module.exports = router;

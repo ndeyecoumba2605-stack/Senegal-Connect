@@ -51,6 +51,33 @@ describe('Auth', () => {
   });
 });
 
+describe('Auth › Login valide → JWT retourné', () => {
+  it('devrait retourner un statut 200 et un token JWT', async () => {
+    const mockUser = {
+      id: 1,
+      email: 'test@senegalconnect.sn',
+      mot_de_passe_hash: '$2b$10$abcdefghijklmnopqrstuvwxyz123456',
+      role: 'client'
+    };
+
+    // 1ère requête : Récupération de l'utilisateur
+    db.query.mockResolvedValueOnce({ rows: [mockUser] });
+    
+    // 2ème requête : Récupération de l'ID client associé
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10 }] });
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: 'test@senegalconnect.sn',
+        mot_de_passe: 'motdepasse123'
+      });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toHaveProperty('token');
+  });
+});
+
 // ───────────── Clients (5) ─────────────
 describe('Clients', () => {
   test('Liste paginée avec pagination', async () => {

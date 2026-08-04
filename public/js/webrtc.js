@@ -11,16 +11,16 @@ let chronoInterval = null;
 // 1. INITIALISATION DE PEERJS
 function initPeer() {
   // Utilise le serveur PeerJS public par défaut
-  peer = new Peer();
+  // Connexion au serveur PeerJS local auto-hébergé
+const peer = new Peer(undefined, {
+  host: window.location.hostname || 'localhost',
+  port: window.location.port ? parseInt(window.location.port) : (window.location.protocol === 'https:' ? 443 : 80),
+  path: '/peerjs'
+});
 
-  peer.on('open', (id) => {
-    console.log('[WebRTC] Mon Peer ID est :', id);
-    window.monPeerId = id;
-  });
-
-  peer.on('error', (err) => {
-    console.error('[WebRTC] Erreur PeerJS :', err);
-  });
+peer.on('open', (id) => {
+  console.log('Connecté au serveur PeerJS local avec ID :', id);
+});
 }
 initPeer();
 

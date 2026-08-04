@@ -1,83 +1,52 @@
-require('dotenv').config();
-console.log('JWT_SECRET chargé (empreinte) :', process.env.JWT_SECRET?.slice(0, 8), '- longueur:', process.env.JWT_SECRET?.length);
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const cors = require('cors');
-const morgan = require('morgan');
-const { Server } = require('socket.io');
 const { ExpressPeerServer } = require('peer');
-
-const logger = require('./config/logger');
-const { gestionnaire404, gestionnaireErreurs } = require('./middleware/erreurs');
-const swaggerSpec = require('./config/swagger');
 const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
+
+const authRoutes = require('./routes/auth');
+const clientsRoutes = require('./routes/clients');
+const forfaitsRoutes = require('./routes/forfaits');
+const facturesRoutes = require('./routes/factures');
+const ticketsRoutes = require('./routes/tickets');
+const statsRoutes = require('./routes/stats');
 
 const app = express();
 const server = http.createServer(app);
 
-// 🛠️ FIX CORS & TRANSPORTS :
-// On définit une origine par défaut ('*') si CORS_ORIGINS n'est pas dans le .env
-const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : '*';
-
-const io = new Server(server, { 
-  cors: { 
-    origin: allowedOrigins,
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  transports: ['polling', 'websocket'] // Permet la négociation propre HTTP -> WS
-});
-
-// IMPORTANT : permet à req.app.get('io') de fonctionner dans les routes
-app.set('io', io);
-
-app.use(cors({ origin: allowedOrigins }));
+// Middlewares
+app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, '../public')));
 
-app.use((req, res, next) => {
-  if (req.path.endsWith('.html') || req.path === '/') {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-  }
-  next();
+// Configuration ExpressPeerServer (Auto-hébergé sur le port 3000)
+const peerServer = ExpressPeerServer(server, {
+  debug: true,
+  path: '/peerjs'
 });
+app.use('/peerjs', peerServer);
 
-app.use(morgan('combined', { stream: logger.stream }));
-app.use(express.static('public'));
-app.use('/uploads', express.static('uploads'));
+// Documentation Swagger
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Routes API & Swagger
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
-
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/clients', require('./routes/clients'));
-app.use('/api/forfaits', require('./routes/forfaits'));
-app.use('/api/factures', require('./routes/factures'));
-app.use('/api/tickets', require('./routes/tickets'));
-app.use('/api/stats', require('./routes/stats'));
-app.get('/api/health', (req, res) =>
-  res.json({ statut: 'ok', version: '1.0.0', uptime: process.uptime(), env: process.env.NODE_ENV })
-);
-
-// WebSockets (Support & Appels)
-require('./socket/support')(io);
-require('./socket/appels')(io);
-
-// Server PeerJS pour la visio/voix
-const { PeerServer } = require('peer');
-
-let peerServer;
-if (process.env.NODE_ENV !== 'test') {
-  peerServer = PeerServer({ port: 3001, path: '/peerjs' });
-}
-
-// Gestion des erreurs
-app.use(gestionnaire404);
-app.use(gestionnaireErreurs);
+// Routes API
+app.use('/api/auth', authRoutes);
+app.use('/api/clients', clientsRoutes);
+app.use('/api/forfaits', forfaitsRoutes);
+app.use('/api/factures', facturesRoutes);
+app.use('/api/tickets', ticketsRoutes);
+app.use('/api/stats', statsRoutes);
 
 const PORT = process.env.PORT || 3000;
-if (require.main === module) {
-  server.listen(PORT, () => logger.info(`Serveur démarré sur le port ${PORT}`));
+
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, () => {
+    console.log(`Serveur Senegal-Connect démarré sur le port ${PORT}`);
+    console.log(`Documentation Swagger disponible sur http://localhost:${PORT}/api-docs`);
+  });
 }
 
 module.exports = { app, server };

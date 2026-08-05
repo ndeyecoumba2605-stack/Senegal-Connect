@@ -1,97 +1,57 @@
 const express = require('express');
-const router = express.Router();
-const facturesController = require('../controllers/facturesController');
+const { body, validationResult } = require('express-validator');
 const { verifierJWT, garderRole } = require('../middleware/auth');
+const facturesController = require('../controllers/facturesController');
 
-/**
- * @openapi
- * /api/factures:
- *   get:
- *     summary: Obtenir la liste des factures
- *     description: Les clients voient uniquement leurs factures; les admins et agents voient toutes les factures.
- *     tags: [Factures]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Liste des factures récupérée
- *       401:
- *         description: Non authentifié
- */
-router.get('/', verifierJWT, facturesController.lister);
+const router = express.Router();
 
-/**
- * @openapi
- * /api/factures/{id}:
- *   get:
- *     summary: Consulter le détail d'une facture
- *     tags: [Factures]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Détails de la facture
- *       404:
- *         description: Facture introuvable
- */
-router.get('/:id', verifierJWT, facturesController.obtenirParId);
+router.get('/', verifierJWT, async (req, res, next) => {
+  try {
+    const { client_id, statut, periode, page, limite } = req.query;
+    const resultat = await facturesController.lister({ clientId: client_id, statut, periode, page, limite });
+    res.json(resultat);
+  } catch (err) { next(err); }
+});
 
-/**
- * @openapi
- * /api/factures:
- *   post:
- *     summary: Générer une nouvelle facture
- *     tags: [Factures]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [client_id, montant, date_echeance]
- *             properties:
- *               client_id:
- *                 type: integer
- *                 example: 12
- *               montant:
- *                 type: number
- *                 example: 15000
- *               date_echeance:
- *                 type: string
- *                 format: date
- *                 example: "2026-09-01"
- *     responses:
- *       201:
- *         description: Facture créée avec succès
- */
-router.post('/', verifierJWT, garderRole('admin', 'agent'), facturesController.creer);
+router.get('/:id', verifierJWT, async (req, res, next) => {
+  try {
+    const facture = await facturesController.detail(req.params.id);
+    if (!facture) return res.status(404).json({ message: 'Facture introuvable' });
+    res.json(facture);
+  } catch (err) { next(err); }
+});
 
-/**
- * @openapi
- * /api/factures/{id}/payer:
- *   patch:
- *     summary: Marquer une facture comme payée
- *     tags: [Factures]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Statut de la facture mis à jour à 'payee'
- */
-router.patch('/:id/payer', verifierJWT, facturesController.payer);
+router.post('/',
+  verifierJWT, garderRole('admin'),
+  [
+    body('client_id').isInt(),
+    body('periode').matches(/^\d{4}-\d{2}$/).withMessage('Format attendu : YYYY-MM'),
+    body('montant_fcfa').isInt({ min: 0 }),
+  ],
+  async (req, res, next) => {
+    const erreurs = validationResult(req);
+    if (!erreurs.isEmpty()) {
+      return res.status(422).json({ erreurs: erreurs.array().map(e => ({ champ: e.path, message: e.msg, valeur: e.value })) });
+    }
+    try {
+      const facture = await facturesController.creer(req.body);
+      res.status(201).json(facture);
+    } catch (err) { next(err); }
+  }
+);
+
+router.put('/:id/statut',
+  verifierJWT, garderRole('admin'),
+  [body('statut').isIn(['payee', 'impayee', 'en_retard'])],
+  async (req, res, next) => {
+    const erreurs = validationResult(req);
+    if (!erreurs.isEmpty()) return res.status(422).json({ erreurs: erreurs.array() });
+    try {
+      const facture = await facturesController.changerStatut(req.params.id, req.body.statut);
+      if (!facture) return res.status(404).json({ message: 'Facture introuvable' });
+      res.json(facture);
+    } catch (err) { next(err); }
+  }
+);
 
 module.exports = router;

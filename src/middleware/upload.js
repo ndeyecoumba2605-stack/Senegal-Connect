@@ -9,9 +9,14 @@ const stockage = multer.diskStorage({
   filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`),
 });
 
+// MAX_FILE_SIZE dans .env est déjà exprimé en octets (10485760 = 10 Mo) :
+// on ne le multiplie pas une seconde fois, sinon la limite de 10 Mo est
+// silencieusement désactivée (elle deviendrait ~10 To).
+const TAILLE_MAX_OCTETS = parseInt(process.env.MAX_FILE_SIZE, 10) || 10 * 1024 * 1024;
+
 const upload = multer({
   storage: stockage,
-  limits: { fileSize: (parseInt(process.env.MAX_FILE_SIZE) || 10) * 1024 * 1024 },
+  limits: { fileSize: TAILLE_MAX_OCTETS },
   fileFilter: (req, file, cb) => {
     if (!TYPES_AUTORISES.includes(file.mimetype)) {
       return cb(new Error('Type de fichier non autorisé'));

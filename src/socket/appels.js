@@ -6,9 +6,10 @@ module.exports = function initAppels(io) {
 
     socket.on('appel:initier', async ({ ticketId, destinataireId, type, peerId }) => {
       try {
+        // statut initial doit respecter la contrainte CHECK de schema.sql : 'sonnerie'
         const resultat = await db.query(
           `INSERT INTO appels (ticket_id, initiateur_id, destinataire_id, type, statut)
-           VALUES ($1,$2,$3,$4,'initie') RETURNING *`,
+           VALUES ($1,$2,$3,$4,'sonnerie') RETURNING *`,
           [ticketId, user.id, destinataireId, type]
         );
         const appel = resultat.rows[0];

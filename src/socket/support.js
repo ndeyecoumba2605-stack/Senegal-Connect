@@ -28,9 +28,20 @@ module.exports = function initSupport(io) {
 
     socket.on('ticket:ouvrir', async ({ sujet }) => {
       try {
+        // tickets.client_id référence clients(id), pas utilisateurs(id) :
+        // on doit d'abord retrouver le client lié à l'utilisateur connecté.
+        const clientRes = await db.query(
+          `SELECT id FROM clients WHERE utilisateur_id = $1`,
+          [user.id]
+        );
+        if (clientRes.rows.length === 0) {
+          return socket.emit('erreur', { message: "Aucun profil client associé à cet utilisateur" });
+        }
+        const clientId = clientRes.rows[0].id;
+
         const resultat = await db.query(
           `INSERT INTO tickets (client_id, sujet) VALUES ($1,$2) RETURNING *`,
-          [user.id, sujet]
+          [clientId, sujet]
         );
         const ticket = resultat.rows[0];
         socket.join(`ticket:${ticket.id}`);
@@ -47,7 +58,16 @@ module.exports = function initSupport(io) {
       );
       const ticket = resultat.rows[0];
       socket.join(`ticket:${ticketId}`);
-      io.to(`user:${ticket.client_id}`).emit('ticket:pris_en_charge', ticket);
+
+      // ticket.client_id est l'id de la table clients : on retrouve l'utilisateur_id
+      // correspondant pour notifier la bonne room "user:{id}".
+      const clientRes = await db.query(
+        `SELECT utilisateur_id FROM clients WHERE id = $1`,
+        [ticket.client_id]
+      );
+      if (clientRes.rows.length > 0) {
+        io.to(`user:${clientRes.rows[0].utilisateur_id}`).emit('ticket:pris_en_charge', ticket);
+      }
     });
 
     socket.on('ticket:fermer', async ({ ticketId }) => {

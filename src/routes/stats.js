@@ -1,39 +1,14 @@
 const express = require('express');
-const router = express.Router();
-const statsController = require('../controllers/statsController');
 const { verifierJWT, garderRole } = require('../middleware/auth');
+const statsController = require('../controllers/statsController');
 
-/**
- * @openapi
- * /api/stats/dashboard:
- *   get:
- *     summary: Obtenir les métriques globales du tableau de bord
- *     description: Récupère les totaux de chiffre d'affaires, le nombre d'abonnés actifs, les incidents en cours et les indicateurs clés.
- *     tags: [Statistiques & Analytics]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Données statistiques compilées avec succès
- *       403:
- *         description: Accès refusé (Réservé aux administrateurs)
- */
-router.get('/dashboard', verifierJWT, garderRole('admin'), statsController.obtenirDashboardStats);
+const router = express.Router();
 
-/**
- * @openapi
- * /api/stats/ventes:
- *   get:
- *     summary: Répartition des ventes par forfait et par mois
- *     tags: [Statistiques & Analytics]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Rapport de ventes généré
- *       403:
- *         description: Accès refusé
- */
-router.get('/ventes', verifierJWT, garderRole('admin'), statsController.obtenirStatsVentes);
+router.get('/', verifierJWT, garderRole('admin'), async (req, res, next) => {
+  try {
+    const stats = await statsController.obtenirStats();
+    res.json(stats);
+  } catch (err) { next(err); }
+});
 
 module.exports = router;

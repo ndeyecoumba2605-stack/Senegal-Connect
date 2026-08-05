@@ -155,22 +155,30 @@ async function demanderReinitialisation(req, res, next) {
 }
 
 // POST /api/auth/reinitialiser-mot-de-passe
-async function reinitialiserMdp(req, res, next) {
+async function reinitialiserMotDePasse(req, res, next) {
   try {
-    const { token } = req.body;
-    // Tolérance pour les deux noms de champ
-    const nouveauMdp = req.body.nouveau_mot_de_passe || req.body.mot_de_passe;
+    const { token, nouveau_mot_de_passe } = req.body;
 
-    if (!token || !nouveauMdp) {
-      return res.status(422).json({ message: 'Token et nouveau mot de passe requis.' });
+    const resultat = await query(
+      `SELECT * FROM reinitialisations_mdp WHERE token = $1 AND expire_le > NOW()`,
+      [token]
+    );
+
+    if (resultat.rows.length === 0) {
+      return res.status(400).json({ message: 'Lien de réinitialisation invalide ou expiré' });
     }
 
-    // Suite de la logique de réinitialisation...
-    await authService.reinitialiserMotDePasse(token, nouveauMdp);
-    return res.status(200).json({ message: 'Mot de passe réinitialisé avec succès.' });
-  } catch (error) {
-    next(error);
+    const demande = resultat.rows[0];
+    const hash = await bcrypt.hash(nouveau_mot_de_passe, COUT_BCRYPT);
+
+    await query('UPDATE utilisateurs SET mot_de_passe = $1 WHERE id = $2', [hash, demande.utilisateur_id]);
+    await query('DELETE FROM reinitialisations_mdp WHERE utilisateur_id = $1', [demande.utilisateur_id]);
+
+    logger.info(`Mot de passe réinitialisé pour l'utilisateur ${demande.utilisateur_id}`);
+    res.json({ message: 'Mot de passe réinitialisé avec succès' });
+  } catch (err) {
+    next(err);
   }
 }
 
-module.exports = { inscrire, inscrireClient, connecter, profil, demanderReinitialisation, reinitialiserMdp };
+module.exports = { inscrire, inscrireClient, connecter, profil, demanderReinitialisation, reinitialiserMotDePasse };

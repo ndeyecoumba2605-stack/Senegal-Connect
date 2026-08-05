@@ -1,66 +1,81 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
+const {
+  inscrire,
+  inscrireClient,
+  connecter,
+  profil,
+  demanderReinitialisation,
+  reinitialiserMotDePasse,
+} = require('../controllers/authController');
+const { verifierJWT } = require('../middleware/auth');
+
 const router = express.Router();
-const authController = require('../controllers/authController');
-const { verifierJWT, garderRole } = require('../middleware/auth');
 
-/**
- * @openapi
- * /api/auth/register:
- *   post:
- *     summary: Inscription d'un nouvel utilisateur (Rôle forcé à client)
- *     tags: [Authentification]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [email, mot_de_passe, nom, prenom]
- *     responses:
- *       201:
- *         description: Utilisateur créé avec succès
- */
-router.post('/register', (req, res, next) => {
-  // Sécurisation : Forcer le rôle 'client' pour toute inscription publique
-  req.body.role = 'client';
-  authController.inscrire(req, res, next);
-});
+function validerRequete(req, res, next) {
+  const erreurs = validationResult(req);
+  if (!erreurs.isEmpty()) {
+    return res.status(422).json({
+      erreurs: erreurs.array().map((e) => ({ champ: e.path, message: e.msg, valeur: e.value })),
+    });
+  }
+  next();
+}
 
-/**
- * @openapi
- * /api/auth/login:
- *   post:
- *     summary: Connexion utilisateur et génération de JWT
- *     tags: [Authentification]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [email, mot_de_passe]
- *     responses:
- *       200:
- *         description: Connexion réussie, jeton retourné
- */
-router.post('/login', authController.connecter);
+router.post(
+  '/register',
+  [
+    body('nom').trim().notEmpty().withMessage('Le nom est requis'),
+    body('prenom').trim().notEmpty().withMessage('Le prénom est requis'),
+    body('email').isEmail().withMessage('Email invalide'),
+    body('mot_de_passe').isLength({ min: 6 }).withMessage('6 caractères minimum'),
+    body('role').isIn(['client', 'agent', 'admin']).withMessage('Rôle invalide'),
+  ],
+  validerRequete,
+  inscrire
+);
 
-/**
- * @openapi
- * /api/auth/demande-reinitialisation-mdp:
- *   post:
- *     summary: Demander un jeton de réinitialisation de mot de passe
- *     tags: [Authentification]
- */
-router.post('/demande-reinitialisation-mdp', authController.demandeReinitialisation);
+router.post(
+  '/inscription-client',
+  [
+    body('nom').trim().notEmpty().withMessage('Le nom est requis'),
+    body('prenom').trim().notEmpty().withMessage('Le prénom est requis'),
+    body('email').isEmail().withMessage('Email invalide'),
+    body('mot_de_passe').isLength({ min: 6 }).withMessage('6 caractères minimum'),
+    body('msisdn').matches(/^\+221[0-9]{9}$/).withMessage('Format attendu : +221XXXXXXXXX'),
+    body('forfait_id').isInt().withMessage('forfait_id doit être un entier'),
+  ],
+  validerRequete,
+  inscrireClient
+);
 
-/**
- * @openapi
- * /api/auth/reinitialiser-mot-de-passe:
- *   post:
- *     summary: Réinitialiser le mot de passe avec le jeton
- *     tags: [Authentification]
- */
-router.post('/reinitialiser-mot-de-passe', authController.reinitialiserMdp);
+router.post(
+  '/login',
+  [
+    body('email').isEmail().withMessage('Email invalide'),
+    body('mot_de_passe').notEmpty().withMessage('Mot de passe requis'),
+  ],
+  validerRequete,
+  connecter
+);
+
+router.get('/profil', verifierJWT, profil);
+
+router.post(
+  '/mot-de-passe-oublie',
+  body('email').isEmail().withMessage('Email invalide'),
+  validerRequete,
+  demanderReinitialisation
+);
+
+router.post(
+  '/reinitialiser-mot-de-passe',
+  [
+    body('token').notEmpty().withMessage('Token requis'),
+    body('nouveau_mot_de_passe').isLength({ min: 6 }).withMessage('6 caractères minimum'),
+  ],
+  validerRequete,
+  reinitialiserMotDePasse
+);
 
 module.exports = router;

@@ -52,6 +52,20 @@ module.exports = function initSupport(io) {
     });
 
     socket.on('ticket:assigner', async ({ ticketId }) => {
+      // Seuls agent/admin peuvent prendre en charge un ticket.
+      if (user.role !== 'agent' && user.role !== 'admin') {
+        return socket.emit('erreur', { message: 'Seul un agent peut prendre en charge un ticket' });
+      }
+
+      // Exclusivité : un ticket déjà pris par un AUTRE agent ne peut pas être volé.
+      const existant = await db.query(`SELECT agent_id FROM tickets WHERE id = $1`, [ticketId]);
+      if (existant.rows.length === 0) {
+        return socket.emit('erreur', { message: 'Ticket introuvable' });
+      }
+      if (existant.rows[0].agent_id && existant.rows[0].agent_id !== user.id) {
+        return socket.emit('erreur', { message: 'Ce ticket est déjà pris en charge par un autre agent' });
+      }
+
       const resultat = await db.query(
         `UPDATE tickets SET agent_id = $1, statut = 'en_cours' WHERE id = $2 RETURNING *`,
         [user.id, ticketId]
@@ -68,6 +82,32 @@ module.exports = function initSupport(io) {
       if (clientRes.rows.length > 0) {
         io.to(`user:${clientRes.rows[0].utilisateur_id}`).emit('ticket:pris_en_charge', ticket);
       }
+
+      // Retire le ticket de la file d'attente affichée aux autres agents.
+      io.to('agents').emit('ticket:pris', { id: ticket.id, agent_id: ticket.agent_id });
+    });
+
+    // Rejoindre la room d'un ticket en lecture (client propriétaire, agent déjà
+    // assigné, ou admin) — n'attribue PAS le ticket, contrairement à
+    // "ticket:assigner". Nécessaire pour recevoir messages/appels en temps réel
+    // sans que le simple fait d'ouvrir un ticket ne le vole à un autre agent.
+    socket.on('ticket:rejoindre', async ({ ticketId }) => {
+      const resultat = await db.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+      const ticket = resultat.rows[0];
+      if (!ticket) return socket.emit('erreur', { message: 'Ticket introuvable' });
+
+      let autorise = user.role === 'admin';
+      if (user.role === 'agent') {
+        autorise = !ticket.agent_id || ticket.agent_id === user.id;
+      } else if (user.role === 'client') {
+        const clientRes = await db.query(`SELECT id FROM clients WHERE utilisateur_id = $1`, [user.id]);
+        autorise = clientRes.rows[0]?.id === ticket.client_id;
+      }
+
+      if (!autorise) {
+        return socket.emit('erreur', { message: 'Ce ticket est pris en charge par un autre agent' });
+      }
+      socket.join(`ticket:${ticketId}`);
     });
 
     socket.on('ticket:fermer', async ({ ticketId }) => {

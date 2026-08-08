@@ -3,6 +3,7 @@
 // =========================================================================
 let socket = null;
 let ticketActifId = null;
+let ticketActifDonnees = null; // dernier objet ticket ouvert (agent_id, client_id, statut...)
 let minuteurFrappe = null;
 let filtreActif = 'tous';
 let tousLesTickets = []; // Tableau global pour stocker la liste et permettre le filtrage en mémoire
@@ -84,9 +85,10 @@ function connecterSocket() {
 
   socket.on('connect', () => {
     console.log('Connecté au serveur Socket.io avec ID :', socket.id);
-    // Si un ticket était ouvert avant reconnexion, rejoindre la room
+    // Si un ticket était ouvert avant reconnexion, on rejoint sa room en LECTURE
+    // uniquement (ne jamais ré-assigner automatiquement le ticket à la reconnexion).
     if (ticketActifId) {
-      socket.emit('ticket:assigner', { ticketId: ticketActifId });
+      socket.emit('ticket:rejoindre', { ticketId: ticketActifId });
     }
   });
 
@@ -94,12 +96,32 @@ function connecterSocket() {
     console.error('Connexion Refusée :', err.message);
   });
 
+  // Messages d'erreur métier émis par le serveur (ex: ticket déjà pris par un
+  // autre agent, accès refusé...) : on les affiche simplement à l'utilisateur.
+  socket.on('erreur', ({ message }) => {
+    if (message) alert(message);
+  });
+
   socket.on('ticket:nouveau', (ticket) => {
     tousLesTickets.unshift(ticket);
     afficherTicketsFiltres();
   });
   socket.on('ticket:pris_en_charge', rafraichirTicket);
+  socket.on('ticket:mis_a_jour', rafraichirTicket);
   socket.on('ticket:ferme', rafraichirTicket);
+
+  // Un autre agent vient de prendre en charge un ticket : on le retire /
+  // met à jour dans la liste locale pour que la file d'attente reste à jour.
+  socket.on('ticket:pris', ({ id, agent_id }) => {
+    const index = tousLesTickets.findIndex(t => String(t.id) === String(id));
+    if (index !== -1) {
+      tousLesTickets[index] = { ...tousLesTickets[index], agent_id, statut: 'en_cours' };
+      afficherTicketsFiltres();
+    }
+    if (String(id) === String(ticketActifId)) {
+      mettreAJourEtatPriseEnCharge({ ...ticketActifDonnees, agent_id });
+    }
+  });
 
   // RECEPTION DES MESSAGES TEMPS RÉEL (Client & Agent)
   socket.on('message:nouveau', (message) => {
@@ -214,6 +236,11 @@ document.querySelectorAll('.nav-btn').forEach(button => {
     if (targetId === 'sec-dashboard') chargerStatsParRole();
     if (targetId === 'sec-clients' && typeof chargerVraisClients === 'function') chargerVraisClients();
     if (targetId === 'sec-tickets') chargerTickets();
+    if (targetId === 'sec-agents') chargerAgents();
+    if (targetId === 'sec-forfaits') chargerForfaits();
+    if (targetId === 'sec-factures') chargerFactures();
+    if (targetId === 'sec-mon-forfait') chargerMonForfait();
+    if (targetId === 'sec-mes-factures') chargerMesFactures();
   });
 });
 
@@ -298,6 +325,15 @@ function rafraichirTicket(ticket) {
   afficherTicketsFiltres();
 
   if (String(ticket.id) === String(ticketActifId)) {
+    ticketActifDonnees = { ...ticketActifDonnees, ...ticket };
+    mettreAJourEtatPriseEnCharge(ticketActifDonnees);
+
+    // Si un agent vient d'être assigné, un client peut désormais l'appeler.
+    const user = utilisateur();
+    if (user?.role === 'client' && ticket.agent_id) {
+      window.ticketActifAutrePartieId = ticket.agent_id;
+    }
+
     const statutEl = document.getElementById('statut-ticket');
     if (statutEl) {
       statutEl.textContent = ticket.statut;
@@ -319,6 +355,8 @@ function initialiserFiltreTickets() {
 async function ouvrirTicket(ticket) {
   ticketActifId = ticket.id;
   window.ticketActifId = ticket.id;
+  ticketActifDonnees = ticket;
+  window.ticketActifAutrePartieId = null; // recalculé ci-dessous
 
   const chatVide = document.getElementById('chat-vide');
   const chatActif = document.getElementById('chat-actif');
@@ -333,12 +371,24 @@ async function ouvrirTicket(ticket) {
     statutEl.className = `badge-statut ${ticket.statut}`;
   }
 
-  // Rejoindre la room de ce ticket pour recevoir tous les messages en temps réel
+  // Rejoindre la room de ce ticket EN LECTURE SEULE pour recevoir les messages
+  // en temps réel. La prise en charge est une action distincte et explicite
+  // (bouton "Prendre en charge"), jamais déclenchée par la simple ouverture.
   if (socket && socket.connected) {
-    socket.emit('ticket:assigner', { ticketId: ticket.id });
+    socket.emit('ticket:rejoindre', { ticketId: ticket.id });
   }
 
-  // Charge les détails complets de l'abonné associé au ticket
+  const user = utilisateur();
+  if (user?.role === 'client') {
+    // Pour un client, l'autre partie de l'appel est l'agent assigné au ticket
+    // (agent_id référence directement utilisateurs.id).
+    window.ticketActifAutrePartieId = ticket.agent_id || null;
+  }
+
+  mettreAJourEtatPriseEnCharge(ticket);
+
+  // Charge les détails complets de l'abonné associé au ticket (renseigne aussi
+  // l'ID utilisateur du client, nécessaire pour qu'un agent puisse l'appeler)
   chargerDetailsAbonne(ticket.client_id || ticket.user_id);
 
   const fil = document.getElementById('fil-messages');
@@ -346,10 +396,53 @@ async function ouvrirTicket(ticket) {
 
   try {
     const reponse = await fetch(`/api/tickets/${ticket.id}/messages`, { headers: { Authorization: `Bearer ${token()}` } });
+    if (reponse.status === 403) {
+      if (fil) fil.innerHTML = '<p style="padding:1rem;color:#ef4444;">Ce ticket est pris en charge par un autre agent — vous n\'y avez pas accès.</p>';
+      return;
+    }
     const { data } = await reponse.json();
     if (Array.isArray(data)) data.forEach(afficherMessage);
   } catch (e) {
     console.error('Erreur chargement messages:', e);
+  }
+}
+
+// Met à jour le bouton "Prendre en charge" et l'état des boutons d'appel
+// selon qui est propriétaire du ticket actif.
+function mettreAJourEtatPriseEnCharge(ticket) {
+  const user = utilisateur();
+  const btnAssigner = document.getElementById('btn-assigner-ticket');
+  const btnAppelAudio = document.getElementById('btn-appel-audio');
+  const btnAppelVideo = document.getElementById('btn-appel-video');
+
+  if (btnAssigner) {
+    if (user?.role === 'agent' || user?.role === 'admin') {
+      btnAssigner.style.display = 'inline-flex';
+      if (!ticket.agent_id) {
+        btnAssigner.disabled = false;
+        btnAssigner.textContent = '';
+        btnAssigner.innerHTML = '<i class="fa-solid fa-user-check"></i> Prendre en charge';
+      } else if (String(ticket.agent_id) === String(user.id)) {
+        btnAssigner.disabled = true;
+        btnAssigner.innerHTML = '<i class="fa-solid fa-check"></i> Pris en charge par vous';
+      } else {
+        btnAssigner.disabled = true;
+        btnAssigner.innerHTML = '<i class="fa-solid fa-lock"></i> Pris en charge par un autre agent';
+      }
+    } else {
+      btnAssigner.style.display = 'none';
+    }
+  }
+
+  // Un client ne peut appeler que si un agent a déjà pris en charge le ticket.
+  if (user?.role === 'client') {
+    const dispo = !!ticket.agent_id;
+    if (btnAppelAudio) btnAppelAudio.disabled = !dispo;
+    if (btnAppelVideo) btnAppelVideo.disabled = !dispo;
+    if (!dispo) {
+      if (btnAppelAudio) btnAppelAudio.title = "Disponible une fois qu'un agent a pris en charge le ticket";
+      if (btnAppelVideo) btnAppelVideo.title = "Disponible une fois qu'un agent a pris en charge le ticket";
+    }
   }
 }
 
@@ -374,6 +467,14 @@ async function chargerDetailsAbonne(clientId) {
 
     if (res.ok) {
       const client = await res.json();
+
+      // Pour un agent/admin, l'autre partie de l'appel est le CLIENT : on a
+      // besoin de son utilisateur_id (et non clients.id) pour émettre
+      // "appel:initier" vers la bonne room "user:{id}".
+      const user = utilisateur();
+      if ((user?.role === 'agent' || user?.role === 'admin') && client.utilisateur_id) {
+        window.ticketActifAutrePartieId = client.utilisateur_id;
+      }
 
       container.innerHTML = `
         <div class="fiche-abonne" style="display: flex; flex-direction: column; gap: 12px; font-size: 0.9rem; color: #334155;">
@@ -641,17 +742,19 @@ function initialiserFormulaireMessage() {
 }
 
 // =========================================================================
-// 7. ÉCOUTEURS D'ÉVÉNEMENTS DES BOUTONS D'APPELS TÉLÉCOM
+// 7. ÉCOUTEURS D'ÉVÉNEMENTS DES BOUTONS D'APPELS TÉLÉCOM & PRISE EN CHARGE
 // =========================================================================
 document.addEventListener('click', (e) => {
   if (e.target.closest('#btn-appel-video')) {
     if (!ticketActifId) return alert("Veuillez d'abord sélectionner un ticket actif.");
+    if (!window.ticketActifAutrePartieId) return alert("Impossible d'appeler : aucun agent n'a encore pris en charge ce ticket.");
     afficherInterfaceAppel("Démarrage de l'appel visio...", true);
     if (typeof window.demarrerAppel === 'function') window.demarrerAppel(ticketActifId, 'video');
   }
 
   if (e.target.closest('#btn-appel-audio')) {
     if (!ticketActifId) return alert("Veuillez d'abord sélectionner un ticket actif.");
+    if (!window.ticketActifAutrePartieId) return alert("Impossible d'appeler : aucun agent n'a encore pris en charge ce ticket.");
     afficherInterfaceAppel("Démarrage de l'appel audio...", false);
     if (typeof window.demarrerAppel === 'function') window.demarrerAppel(ticketActifId, 'audio');
   }
@@ -659,6 +762,32 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('#btn-raccrocher')) {
     masquerInterfaceAppel();
     if (typeof window.terminerAppel === 'function') window.terminerAppel();
+  }
+
+  // Prise en charge exclusive d'un ticket par un agent/admin.
+  if (e.target.closest('#btn-assigner-ticket')) {
+    (async () => {
+      if (!ticketActifId) return;
+      try {
+        const res = await fetch(`/api/tickets/${ticketActifId}/assigner`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token()}` },
+        });
+        const data = await res.json();
+        if (res.ok) {
+          ticketActifDonnees = data;
+          mettreAJourEtatPriseEnCharge(data);
+          rafraichirTicket(data);
+        } else if (res.status === 409) {
+          alert(data.message || 'Ce ticket est déjà pris en charge par un autre agent.');
+          mettreAJourEtatPriseEnCharge({ ...ticketActifDonnees, agent_id: -1 });
+        } else {
+          alert(data.message || 'Impossible de prendre en charge ce ticket.');
+        }
+      } catch (err) {
+        console.error('Erreur prise en charge du ticket :', err);
+      }
+    })();
   }
 });
 

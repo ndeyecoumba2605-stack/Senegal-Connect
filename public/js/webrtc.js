@@ -11,16 +11,16 @@ let chronoInterval = null;
 // 1. INITIALISATION DE PEERJS
 function initPeer() {
   // Utilise le serveur PeerJS public par défaut
-  // Connexion au serveur PeerJS local auto-hébergé
-const peer = new Peer(undefined, {
-  host: window.location.hostname || 'localhost',
-  port: window.location.port ? parseInt(window.location.port) : (window.location.protocol === 'https:' ? 443 : 80),
-  path: '/peerjs'
-});
+  peer = new Peer();
 
-peer.on('open', (id) => {
-  console.log('Connecté au serveur PeerJS local avec ID :', id);
-});
+  peer.on('open', (id) => {
+    console.log('[WebRTC] Mon Peer ID est :', id);
+    window.monPeerId = id;
+  });
+
+  peer.on('error', (err) => {
+    console.error('[WebRTC] Erreur PeerJS :', err);
+  });
 }
 initPeer();
 
@@ -155,10 +155,20 @@ window.gererAppelEntrant = function ({ appelId, initiateur, peerIdInitiateur, ty
   appelEnCours = { appelId, autrePartieId: initiateur.id, peerIdDistant: peerIdInitiateur, type };
   
   const texteAppelEntrant = document.getElementById('texte-appel-entrant');
-  if (texteAppelEntrant) texteAppelEntrant.textContent = `Appel ${type} de ${initiateur.nom || 'un utilisateur'}`;
+  if (texteAppelEntrant) texteAppelEntrant.textContent = `Appel ${type === 'video' ? 'vidéo' : 'audio'} de ${initiateur.nom || 'un utilisateur'}`;
   
   const modaleAppelEntrant = document.getElementById('modale-appel-entrant');
-  if (modaleAppelEntrant) modaleAppelEntrant.classList.remove('cache');
+  if (modaleAppelEntrant) {
+    modaleAppelEntrant.classList.remove('cache');
+    modaleAppelEntrant.style.display = 'flex';
+  }
+
+  function fermerSonnerie() {
+    if (modaleAppelEntrant) {
+      modaleAppelEntrant.classList.add('cache');
+      modaleAppelEntrant.style.display = 'none';
+    }
+  }
 
   const btnAccepterAppel = document.getElementById('btn-accepter-appel');
   if (btnAccepterAppel) {
@@ -167,7 +177,7 @@ window.gererAppelEntrant = function ({ appelId, initiateur, peerIdInitiateur, ty
         await obtenirFluxMedia(type);
         socket.emit('appel:accepter', { appelId, initiateurId: initiateur.id, peerId: window.monPeerId });
         
-        if (modaleAppelEntrant) modaleAppelEntrant.classList.add('cache');
+        fermerSonnerie();
         ouvrirInterfaceAppel(type);
 
         peer.on('call', (appelEntrant) => {
@@ -185,7 +195,7 @@ window.gererAppelEntrant = function ({ appelId, initiateur, peerIdInitiateur, ty
   if (btnRefuserAppel) {
     btnRefuserAppel.onclick = () => {
       socket.emit('appel:refuser', { appelId, initiateurId: initiateur.id });
-      if (modaleAppelEntrant) modaleAppelEntrant.classList.add('cache');
+      fermerSonnerie();
     };
   }
 };

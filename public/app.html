@@ -54,6 +54,9 @@
         <button class="nav-btn role-admin-only" data-target="sec-clients">
           <i class="fa-solid fa-users"></i> Clients (+221)
         </button>
+        <button class="nav-btn role-admin-only" data-target="sec-agents">
+          <i class="fa-solid fa-user-tie"></i> Agents
+        </button>
 
         <!-- Vue Admin & Agent -->
         <button class="nav-btn role-admin-agent" data-target="sec-forfaits">
@@ -61,6 +64,14 @@
         </button>
         <button class="nav-btn role-admin-agent" data-target="sec-factures">
           <i class="fa-solid fa-file-invoice-dollar"></i> Factures
+        </button>
+
+        <!-- Vue Client Uniquement -->
+        <button class="nav-btn role-client-only" data-target="sec-mon-forfait" style="display:none;">
+          <i class="fa-solid fa-box-archive"></i> Mon Forfait
+        </button>
+        <button class="nav-btn role-client-only" data-target="sec-mes-factures" style="display:none;">
+          <i class="fa-solid fa-file-invoice-dollar"></i> Mes Factures
         </button>
 
         <!-- Accessible par Tous -->
@@ -221,6 +232,134 @@
         </div>
       </section>
 
+      <!-- ================= SECTION AGENTS (ADMIN) ================= -->
+      <section id="sec-agents" class="page-section">
+        <div class="card-container">
+          <div class="card-header-stripe" style="background: #10b981;"></div>
+          <div class="card-body">
+            <h2 class="card-title"><i class="fa-solid fa-user-plus"></i> Créer un Compte Agent Support</h2>
+            <form id="form-creation-agent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+              <input type="text" id="agent-prenom" placeholder="Prénom" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+              <input type="text" id="agent-nom" placeholder="Nom" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+              <input type="email" id="agent-email" placeholder="Email professionnel" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+              <input type="password" id="agent-mdp" placeholder="Mot de passe temporaire" autocomplete="new-password" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+              <button type="submit" class="btn-action" style="grid-column: 1 / -1; justify-self: start;">Créer l'agent</button>
+            </form>
+            <p id="msg-agent-feedback" style="margin-top: 0.5rem; font-size: 0.875rem;"></p>
+          </div>
+        </div>
+
+        <div class="card-container" style="margin-top: 1.5rem;">
+          <div class="card-header-stripe"></div>
+          <div class="card-body">
+            <h2 class="card-title">Comptes internes (Agents & Admins)</h2>
+            <table class="styled-table">
+              <thead>
+                <tr><th>Nom & Prénom</th><th>Email</th><th>Rôle</th><th>Tickets en cours</th><th>Créé le</th><th></th></tr>
+              </thead>
+              <tbody id="agentsTableBody">
+                <tr><td colspan="6" style="text-align: center;">Chargement des comptes...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION FORFAITS (ADMIN/AGENT) ================= -->
+      <section id="sec-forfaits" class="page-section">
+        <div class="card-container role-admin-only" id="bloc-creation-forfait">
+          <div class="card-header-stripe" style="background: #10b981;"></div>
+          <div class="card-body">
+            <h2 class="card-title"><i class="fa-solid fa-plus"></i> Créer un forfait</h2>
+            <form id="form-creation-forfait" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 1rem;">
+              <input type="text" id="forfait-nom" placeholder="Nom du forfait" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+              <input type="number" id="forfait-data" placeholder="Data (Go)" min="0" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+              <input type="number" id="forfait-voix" placeholder="Voix (min)" min="0" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+              <input type="number" id="forfait-prix" placeholder="Prix (FCFA)" min="1" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+              <button type="submit" class="btn-action" style="grid-column: 1 / -1; justify-self: start;">Créer le forfait</button>
+            </form>
+            <p id="msg-forfait-feedback" style="margin-top: 0.5rem; font-size: 0.875rem;"></p>
+          </div>
+        </div>
+
+        <div class="card-container" style="margin-top: 1.5rem;">
+          <div class="card-header-stripe"></div>
+          <div class="card-body">
+            <h2 class="card-title">Catalogue des forfaits</h2>
+            <table class="styled-table">
+              <thead>
+                <tr><th>Nom</th><th>Data</th><th>Voix</th><th>Prix</th><th>Abonnés</th><th class="role-admin-only"></th></tr>
+              </thead>
+              <tbody id="forfaitsTableBody">
+                <tr><td colspan="6" style="text-align: center;">Chargement des forfaits...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION FACTURES (ADMIN/AGENT) ================= -->
+      <section id="sec-factures" class="page-section">
+        <div class="card-container role-admin-only">
+          <div class="card-header-stripe" style="background: #f59e0b;"></div>
+          <div class="card-body" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+            <div>
+              <h2 class="card-title" style="margin-bottom:0.25rem;"><i class="fa-solid fa-file-invoice-dollar"></i> Facturation mensuelle</h2>
+              <p class="card-subtitle" style="margin:0;">Génère la facture du mois pour tous les clients actifs qui n'en ont pas déjà une.</p>
+            </div>
+            <button id="btn-generer-factures" class="btn-action">Générer les factures du mois</button>
+          </div>
+        </div>
+
+        <div class="card-container" style="margin-top: 1.5rem;">
+          <div class="card-header-stripe"></div>
+          <div class="card-body">
+            <h2 class="card-title">Factures</h2>
+            <table class="styled-table">
+              <thead>
+                <tr><th>Référence</th><th>Client</th><th>Période</th><th>Montant</th><th>Statut</th><th class="role-admin-only">Action</th></tr>
+              </thead>
+              <tbody id="facturesTableBody">
+                <tr><td colspan="6" style="text-align: center;">Chargement des factures...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION MON FORFAIT (CLIENT) ================= -->
+      <section id="sec-mon-forfait" class="page-section">
+        <div class="card-container">
+          <div class="card-header-stripe"></div>
+          <div class="card-body">
+            <h2 class="card-title"><i class="fa-solid fa-box-archive"></i> Mon Forfait</h2>
+            <div id="forfait-actuel-container" style="margin-bottom:1.5rem; padding:1rem; background:#f8fafc; border-radius:0.5rem;">
+              Chargement...
+            </div>
+            <h3 style="font-size:1rem; margin-bottom:0.75rem;">Changer de forfait</h3>
+            <div id="forfaits-disponibles-container" class="stats-grid">
+              Chargement des forfaits disponibles...
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION MES FACTURES (CLIENT) ================= -->
+      <section id="sec-mes-factures" class="page-section">
+        <div class="card-container">
+          <div class="card-header-stripe"></div>
+          <div class="card-body">
+            <h2 class="card-title"><i class="fa-solid fa-file-invoice-dollar"></i> Mes Factures</h2>
+            <table class="styled-table">
+              <thead><tr><th>Référence</th><th>Période</th><th>Montant</th><th>Statut</th><th>Échéance</th></tr></thead>
+              <tbody id="mesFacturesTableBody">
+                <tr><td colspan="5" style="text-align: center;">Chargement...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ================= SECTION SUPPORT & CHAT TEMPS RÉEL ================= -->
       <section id="sec-tickets" class="page-section">
         <div class="card-container">
@@ -334,6 +473,24 @@
     </div>
   </div>
 
+  <!-- ================= MODALE APPEL ENTRANT (SONNERIE) ================= -->
+  <div id="modale-appel-entrant" class="modal-overlay cache" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background: #1e293b; color: white; padding: 2rem; border-radius: 16px; width: 90%; max-width: 380px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+      <div style="width: 72px; height: 72px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin: 0 auto 1.25rem; box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.2);">
+        <i class="fa-solid fa-phone-volume"></i>
+      </div>
+      <p id="texte-appel-entrant" style="font-size: 1.05rem; margin-bottom: 1.5rem;">Appel entrant...</p>
+      <div style="display: flex; gap: 1rem; justify-content: center;">
+        <button id="btn-refuser-appel" style="background: #ef4444; color: white; padding: 0.75rem 1.25rem; border-radius: 8px; border: none; font-weight: bold; cursor: pointer;">
+          <i class="fa-solid fa-phone-slash"></i> Refuser
+        </button>
+        <button id="btn-accepter-appel" style="background: #10b981; color: white; padding: 0.75rem 1.25rem; border-radius: 8px; border: none; font-weight: bold; cursor: pointer;">
+          <i class="fa-solid fa-phone"></i> Répondre
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= MODALE APPEL VIDÉO / AUDIO (WEBRTC) ================= -->
   <div id="modal-appel" class="modal-overlay cache" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 9999; align-items: center; justify-content: center;">
     <div class="modal-contenu" style="background: #1e293b; color: white; padding: 2rem; border-radius: 16px; width: 92%; max-width: 680px; text-align: center; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
@@ -400,21 +557,30 @@
 
       if (u.role === 'client') {
         document.querySelectorAll('.role-admin-only, .role-admin-agent').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.role-client-only').forEach(el => el.style.display = '');
         if (titreTickets) titreTickets.textContent = 'Mes Demandes';
         if (btnNouveau) btnNouveau.style.display = 'inline-block';
-        
+
         chargerTableauDeBordClient();
+        chargerMonForfait();
+        chargerMesFactures();
       } else {
+        document.querySelectorAll('.role-client-only').forEach(el => el.style.display = 'none');
         document.querySelectorAll('.role-admin-agent').forEach(el => el.style.display = '');
         if (u.role === 'admin') {
           document.querySelectorAll('.role-admin-only').forEach(el => el.style.display = '');
           chargerVraisClients();
-          injecterInterfaceCreationAgent();
+          chargerAgents();
+          initialiserFormulaireAgent();
+          initialiserFormulaireForfait();
         } else {
           document.querySelectorAll('.role-admin-only').forEach(el => el.style.display = 'none');
         }
         if (titreTickets) titreTickets.textContent = 'File de Support';
         if (btnNouveau) btnNouveau.style.display = 'none';
+
+        chargerForfaits();
+        chargerFactures();
       }
 
       // 4. Modale Création Ticket (Client)
@@ -533,31 +699,14 @@
       }
     }
 
-    // FORMULAIRE CRÉATION AGENT (ADMIN)
-    function injecterInterfaceCreationAgent() {
-      const sectionClients = document.getElementById('sec-clients');
-      if (!sectionClients || document.getElementById('form-creation-agent')) return;
+    // FORMULAIRE CRÉATION AGENT (ADMIN) — le formulaire vit maintenant dans
+    // la section statique #sec-agents (voir HTML), on se contente de le câbler.
+    function initialiserFormulaireAgent() {
+      const form = document.getElementById('form-creation-agent');
+      if (!form || form.dataset.initialise) return;
+      form.dataset.initialise = 'true';
 
-      const divCreation = document.createElement('div');
-      divCreation.className = 'card-container';
-      divCreation.style.marginTop = '2rem';
-      divCreation.innerHTML = `
-        <div class="card-header-stripe" style="background: #10b981;"></div>
-        <div class="card-body">
-          <h2 class="card-title"><i class="fa-solid fa-user-plus"></i> Créer un Compte Agent Support</h2>
-          <form id="form-creation-agent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
-            <input type="text" id="agent-prenom" placeholder="Prénom" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
-            <input type="text" id="agent-nom" placeholder="Nom" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
-            <input type="email" id="agent-email" placeholder="Email professionnel" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
-            <input type="password" id="agent-mdp" placeholder="Mot de passe temporaire" autocomplete="new-password" required style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
-            <button type="submit" class="btn-action" style="grid-column: 1 / -1; justify-self: start;">Créer l'agent</button>
-          </form>
-          <p id="msg-agent-feedback" style="margin-top: 0.5rem; font-size: 0.875rem;"></p>
-        </div>
-      `;
-      sectionClients.appendChild(divCreation);
-
-      document.getElementById('form-creation-agent').addEventListener('submit', async (e) => {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
         const feedback = document.getElementById('msg-agent-feedback');
@@ -584,16 +733,346 @@
           if (res.ok) {
             feedback.style.color = '#10b981';
             feedback.textContent = 'Agent créé avec succès !';
-            document.getElementById('form-creation-agent').reset();
+            form.reset();
+            chargerAgents();
           } else {
             feedback.style.color = '#ef4444';
-            feedback.textContent = `Erreur : ${data.message || 'Impossible de créer l’agent'}`;
+            feedback.textContent = `Erreur : ${data.message || "Impossible de créer l'agent"}`;
           }
         } catch (err) {
           feedback.style.color = '#ef4444';
           feedback.textContent = 'Erreur réseau lors de la création.';
         }
       });
+    }
+
+    // LISTE DES AGENTS/ADMINS (ADMIN)
+    async function chargerAgents() {
+      const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const tbody = document.getElementById('agentsTableBody');
+      if (!tbody) return;
+
+      try {
+        const res = await fetch('/api/utilisateurs', { headers: { Authorization: `Bearer ${jwtToken}` } });
+        if (!res.ok) throw new Error('Erreur serveur');
+        const { data } = await res.json();
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1rem;">Aucun compte agent/admin.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.map(u => `
+          <tr>
+            <td style="font-weight:500;">${u.prenom || ''} ${u.nom || ''}</td>
+            <td>${u.email}</td>
+            <td><span class="badge-statut ${u.role === 'admin' ? 'ferme' : 'ouvert'}">${u.role}</span></td>
+            <td>${u.tickets_en_cours}</td>
+            <td>${u.cree_le ? new Date(u.cree_le).toLocaleDateString('fr-FR') : '—'}</td>
+            <td>
+              ${String(u.id) === String(window.currentUser.id) ? '' : `<button class="btn-danger btn-supprimer-agent" data-id="${u.id}" style="padding:0.35rem 0.75rem; font-size:0.8rem;">Supprimer</button>`}
+            </td>
+          </tr>
+        `).join('');
+
+        tbody.querySelectorAll('.btn-supprimer-agent').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Supprimer ce compte ? Ses tickets en cours redeviendront non assignés.')) return;
+            try {
+              const res = await fetch(`/api/utilisateurs/${btn.dataset.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${jwtToken}` }
+              });
+              if (res.ok || res.status === 204) chargerAgents();
+              else alert('Impossible de supprimer ce compte.');
+            } catch (err) {
+              console.error('Erreur suppression agent:', err);
+            }
+          });
+        });
+      } catch (err) {
+        console.error('Erreur chargement agents:', err);
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ef4444; padding:1rem;">Erreur de chargement.</td></tr>';
+      }
+    }
+
+    // FORMULAIRE CRÉATION FORFAIT (ADMIN)
+    function initialiserFormulaireForfait() {
+      const form = document.getElementById('form-creation-forfait');
+      if (!form || form.dataset.initialise) return;
+      form.dataset.initialise = 'true';
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+        const feedback = document.getElementById('msg-forfait-feedback');
+
+        const payload = {
+          nom: document.getElementById('forfait-nom').value,
+          quota_data_go: Number(document.getElementById('forfait-data').value),
+          quota_voix_min: Number(document.getElementById('forfait-voix').value),
+          prix_mensuel_fcfa: Number(document.getElementById('forfait-prix').value),
+        };
+
+        try {
+          const res = await fetch('/api/forfaits', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwtToken}` },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (res.ok) {
+            feedback.style.color = '#10b981';
+            feedback.textContent = 'Forfait créé avec succès !';
+            form.reset();
+            chargerForfaits();
+          } else {
+            feedback.style.color = '#ef4444';
+            feedback.textContent = `Erreur : ${data.message || (data.erreurs && data.erreurs[0]?.message) || 'Échec de la création'}`;
+          }
+        } catch (err) {
+          feedback.style.color = '#ef4444';
+          feedback.textContent = 'Erreur réseau lors de la création.';
+        }
+      });
+    }
+
+    // CATALOGUE DES FORFAITS (ADMIN/AGENT)
+    async function chargerForfaits() {
+      const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const tbody = document.getElementById('forfaitsTableBody');
+      if (!tbody) return;
+
+      try {
+        const res = await fetch('/api/forfaits');
+        if (!res.ok) throw new Error('Erreur serveur');
+        const reponse = await res.json();
+        const forfaits = Array.isArray(reponse) ? reponse : (reponse.data || []);
+
+        if (forfaits.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1rem;">Aucun forfait.</td></tr>';
+          return;
+        }
+
+        const estAdmin = window.currentUser?.role === 'admin';
+        tbody.innerHTML = forfaits.map(f => `
+          <tr>
+            <td style="font-weight:500;">${f.nom}</td>
+            <td>${f.quota_data_go} Go</td>
+            <td>${f.quota_voix_min} min</td>
+            <td>${Number(f.prix_mensuel_fcfa).toLocaleString('fr-FR')} FCFA</td>
+            <td>${f.nb_clients ?? 0}</td>
+            <td>${estAdmin ? `<button class="btn-danger btn-supprimer-forfait" data-id="${f.id}" style="padding:0.35rem 0.75rem; font-size:0.8rem;">Supprimer</button>` : ''}</td>
+          </tr>
+        `).join('');
+
+        tbody.querySelectorAll('.btn-supprimer-forfait').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Supprimer ce forfait ?')) return;
+            try {
+              const res = await fetch(`/api/forfaits/${btn.dataset.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${jwtToken}` }
+              });
+              if (res.ok || res.status === 204) chargerForfaits();
+              else {
+                const data = await res.json().catch(() => ({}));
+                alert(data.message || 'Impossible de supprimer ce forfait (des clients y sont peut-être abonnés).');
+              }
+            } catch (err) {
+              console.error('Erreur suppression forfait:', err);
+            }
+          });
+        });
+      } catch (err) {
+        console.error('Erreur chargement forfaits:', err);
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ef4444; padding:1rem;">Erreur de chargement.</td></tr>';
+      }
+    }
+
+    // FACTURES (ADMIN/AGENT)
+    async function chargerFactures() {
+      const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const tbody = document.getElementById('facturesTableBody');
+      if (!tbody) return;
+
+      try {
+        const res = await fetch('/api/factures', { headers: { Authorization: `Bearer ${jwtToken}` } });
+        if (!res.ok) throw new Error('Erreur serveur');
+        const { data } = await res.json();
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1rem;">Aucune facture.</td></tr>';
+          return;
+        }
+
+        const estAdmin = window.currentUser?.role === 'admin';
+        tbody.innerHTML = data.map(f => `
+          <tr>
+            <td><code>${f.reference}</code></td>
+            <td>#${f.client_id}</td>
+            <td>${f.periode}</td>
+            <td>${Number(f.montant_fcfa).toLocaleString('fr-FR')} FCFA</td>
+            <td><span class="badge-statut ${f.statut}">${f.statut}</span></td>
+            <td>
+              ${estAdmin && f.statut !== 'payee' ? `<button class="btn-action btn-marquer-payee" data-id="${f.id}" style="padding:0.35rem 0.75rem; font-size:0.8rem;">Marquer payée</button>` : ''}
+            </td>
+          </tr>
+        `).join('');
+
+        tbody.querySelectorAll('.btn-marquer-payee').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            try {
+              const res = await fetch(`/api/factures/${btn.dataset.id}/statut`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwtToken}` },
+                body: JSON.stringify({ statut: 'payee' })
+              });
+              if (res.ok) chargerFactures();
+              else alert('Impossible de mettre à jour cette facture.');
+            } catch (err) {
+              console.error('Erreur mise à jour facture:', err);
+            }
+          });
+        });
+      } catch (err) {
+        console.error('Erreur chargement factures:', err);
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ef4444; padding:1rem;">Erreur de chargement.</td></tr>';
+      }
+    }
+
+    // Bouton "Générer les factures du mois" (admin)
+    const btnGenererFactures = document.getElementById('btn-generer-factures');
+    if (btnGenererFactures) {
+      btnGenererFactures.addEventListener('click', async () => {
+        const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+        btnGenererFactures.disabled = true;
+        btnGenererFactures.textContent = 'Génération en cours...';
+        try {
+          const res = await fetch('/api/factures/generer-mensuelles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwtToken}` },
+            body: JSON.stringify({})
+          });
+          const data = await res.json();
+          if (res.ok) {
+            alert(`${data.genere} facture(s) générée(s) pour ce mois.`);
+            chargerFactures();
+          } else {
+            alert(data.message || 'Échec de la génération des factures.');
+          }
+        } catch (err) {
+          console.error('Erreur génération factures:', err);
+        } finally {
+          btnGenererFactures.disabled = false;
+          btnGenererFactures.textContent = 'Générer les factures du mois';
+        }
+      });
+    }
+
+    // MON FORFAIT (CLIENT) — forfait actuel + changement self-service
+    async function chargerMonForfait() {
+      const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const u = window.currentUser;
+      const clientId = u?.client_id || u?.id;
+      const conteneurActuel = document.getElementById('forfait-actuel-container');
+      const conteneurDisponibles = document.getElementById('forfaits-disponibles-container');
+      if (!conteneurActuel || !conteneurDisponibles || !clientId) return;
+
+      try {
+        const [resClient, resForfaits] = await Promise.all([
+          fetch(`/api/clients/${clientId}`, { headers: { Authorization: `Bearer ${jwtToken}` } }),
+          fetch('/api/forfaits'),
+        ]);
+        const client = resClient.ok ? await resClient.json() : null;
+        const reponseForfaits = resForfaits.ok ? await resForfaits.json() : { data: [] };
+        const forfaits = Array.isArray(reponseForfaits) ? reponseForfaits : (reponseForfaits.data || []);
+
+        if (client) {
+          conteneurActuel.innerHTML = `
+            <strong style="font-size:1.1rem;">${client.forfait_nom || 'Aucun forfait actif'}</strong><br>
+            <span style="color:#64748b; font-size:0.9rem;">
+              ${client.quota_data_go ?? 0} Go data · ${client.quota_voix_min ?? 0} min voix ·
+              ${client.prix_mensuel_fcfa ? Number(client.prix_mensuel_fcfa).toLocaleString('fr-FR') + ' FCFA/mois' : ''}
+            </span>
+          `;
+        }
+
+        conteneurDisponibles.innerHTML = forfaits.map(f => {
+          const estActif = client && String(f.id) === String(client.forfait_id);
+          return `
+            <div class="stat-card" style="align-items:flex-start;">
+              <div class="stat-info" style="width:100%;">
+                <span class="label">${f.nom}</span>
+                <strong class="value" style="font-size:1rem;">${Number(f.prix_mensuel_fcfa).toLocaleString('fr-FR')} FCFA</strong>
+                <span style="display:block; font-size:0.8rem; color:#64748b; margin:0.25rem 0 0.75rem;">${f.quota_data_go} Go · ${f.quota_voix_min} min</span>
+                <button class="btn-action btn-choisir-forfait" data-id="${f.id}" ${estActif ? 'disabled' : ''} style="width:100%; padding:0.5rem;">
+                  ${estActif ? 'Forfait actuel' : 'Choisir ce forfait'}
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('') || '<p style="color:#64748b;">Aucun forfait disponible.</p>';
+
+        conteneurDisponibles.querySelectorAll('.btn-choisir-forfait').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Confirmer le changement de forfait ?')) return;
+            try {
+              const res = await fetch(`/api/clients/${clientId}/forfait`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwtToken}` },
+                body: JSON.stringify({ forfait_id: Number(btn.dataset.id) })
+              });
+              const data = await res.json();
+              if (res.ok) {
+                alert('Forfait mis à jour avec succès !');
+                chargerMonForfait();
+                chargerTableauDeBordClient();
+              } else {
+                alert(data.message || 'Échec du changement de forfait.');
+              }
+            } catch (err) {
+              console.error('Erreur changement de forfait:', err);
+            }
+          });
+        });
+      } catch (err) {
+        console.error('Erreur chargement Mon Forfait:', err);
+        conteneurActuel.innerHTML = '<span style="color:#ef4444;">Erreur de chargement.</span>';
+      }
+    }
+
+    // MES FACTURES (CLIENT)
+    async function chargerMesFactures() {
+      const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const u = window.currentUser;
+      const clientId = u?.client_id || u?.id;
+      const tbody = document.getElementById('mesFacturesTableBody');
+      if (!tbody || !clientId) return;
+
+      try {
+        const res = await fetch(`/api/factures?client_id=${clientId}`, { headers: { Authorization: `Bearer ${jwtToken}` } });
+        if (!res.ok) throw new Error('Erreur serveur');
+        const { data } = await res.json();
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:1rem;">Aucune facture.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.map(f => `
+          <tr>
+            <td><code>${f.reference}</code></td>
+            <td>${f.periode}</td>
+            <td>${Number(f.montant_fcfa).toLocaleString('fr-FR')} FCFA</td>
+            <td><span class="badge-statut ${f.statut}">${f.statut}</span></td>
+            <td>${f.date_echeance ? new Date(f.date_echeance).toLocaleDateString('fr-FR') : '—'}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Erreur chargement mes factures:', err);
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:1rem;">Erreur de chargement.</td></tr>';
+      }
     }
   </script>
 </body>

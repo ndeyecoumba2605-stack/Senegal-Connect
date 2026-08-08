@@ -285,6 +285,70 @@ describe('Clients CRUD', () => {
       .send({ nom: 'A', prenom: 'B', email: 'a@a.com', msisdn: '+221771234567', forfait_id: 1 });
     expect(reponse.status).toBe(403);
   });
+
+  test('Un client change lui-même de forfait → 200', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 2, nom: 'Confort', actif: true }] }); // SELECT forfait actif
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5, forfait_id: 2 }] }); // UPDATE clients
+    const reponse = await request(app)
+      .patch('/api/clients/2/forfait')
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ forfait_id: 2 });
+    expect(reponse.status).toBe(200);
+  });
+
+  test('Un client ne peut pas changer le forfait d\'un autre client → 403', async () => {
+    const reponse = await request(app)
+      .patch('/api/clients/999/forfait')
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ forfait_id: 2 });
+    expect(reponse.status).toBe(403);
+  });
+
+  test('Changer vers un forfait inexistant/inactif → 422', async () => {
+    db.query.mockResolvedValueOnce({ rows: [] });
+    const reponse = await request(app)
+      .patch('/api/clients/2/forfait')
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ forfait_id: 999 });
+    expect(reponse.status).toBe(422);
+  });
+});
+
+// ───────────── Gestion des utilisateurs internes (agents/admins) ─────────────
+describe('Gestion des utilisateurs internes', () => {
+  test('Lister les agents (admin) → 200', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 3, nom: 'Diop', role: 'agent' }] });
+    db.query.mockResolvedValueOnce({ rows: [{ agent_id: 3, tickets_en_cours: '2' }] });
+    const reponse = await request(app)
+      .get('/api/utilisateurs?role=agent')
+      .set('Authorization', `Bearer ${tokenAdmin}`);
+    expect(reponse.status).toBe(200);
+    expect(reponse.body.data[0].tickets_en_cours).toBe(2);
+  });
+
+  test('Lister les utilisateurs sans être admin → 403', async () => {
+    const reponse = await request(app)
+      .get('/api/utilisateurs')
+      .set('Authorization', `Bearer ${tokenClient}`);
+    expect(reponse.status).toBe(403);
+  });
+
+  test('Supprimer un agent (admin) → 204', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ role: 'agent' }] });
+    db.query.mockResolvedValueOnce({ rows: [] });
+    const reponse = await request(app)
+      .delete('/api/utilisateurs/3')
+      .set('Authorization', `Bearer ${tokenAdmin}`);
+    expect(reponse.status).toBe(204);
+  });
+
+  test('Un admin ne peut pas se supprimer lui-même → 400', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ role: 'admin' }] });
+    const reponse = await request(app)
+      .delete('/api/utilisateurs/1')
+      .set('Authorization', `Bearer ${tokenAdmin}`);
+    expect(reponse.status).toBe(400);
+  });
 });
 
 // ───────────── Forfaits — détail et modification ─────────────
@@ -327,6 +391,22 @@ describe('Factures complémentaire', () => {
     const reponse = await request(app).get('/api/factures/999').set('Authorization', `Bearer ${tokenAdmin}`);
     expect(reponse.status).toBe(404);
   });
+
+  test('Un client ne peut pas consulter la facture d\'un autre client → 403', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, client_id: 5 }] }); // facture appartient au client 5
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // client lié à la facture
+    db.query.mockResolvedValueOnce({ rows: [{ id: 42 }] }); // le client connecté est en fait clients.id = 42
+    const reponse = await request(app).get('/api/factures/1').set('Authorization', `Bearer ${tokenClient}`);
+    expect(reponse.status).toBe(403);
+  });
+
+  test('GET /api/factures — un client ne voit que ses propres factures', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // résolution clients.id depuis utilisateur_id
+    db.query.mockResolvedValueOnce({ rows: [{ count: '1' }] });
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, client_id: 5 }] });
+    const reponse = await request(app).get('/api/factures').set('Authorization', `Bearer ${tokenClient}`);
+    expect(reponse.status).toBe(200);
+  });
 });
 
 // ───────────── Tickets ─────────────
@@ -351,11 +431,21 @@ describe('Tickets', () => {
 
   test('Assigner un ticket (agent) → 200', async () => {
     const tokenAgent = jwt.sign({ id: 3, role: 'agent', nom: 'Agent' }, process.env.JWT_SECRET);
-    db.query.mockResolvedValueOnce({ rows: [{ id: 1, statut: 'en_cours', agent_id: 3 }] });
+    db.query.mockResolvedValueOnce({ rows: [{ agent_id: null }] }); // vérif exclusivité (non assigné)
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, statut: 'en_cours', agent_id: 3 }] }); // UPDATE
     const reponse = await request(app)
       .patch('/api/tickets/1/assigner')
       .set('Authorization', `Bearer ${tokenAgent}`);
     expect(reponse.status).toBe(200);
+  });
+
+  test('Assigner un ticket déjà pris en charge par un autre agent → 409', async () => {
+    const tokenAgent = jwt.sign({ id: 3, role: 'agent', nom: 'Agent' }, process.env.JWT_SECRET);
+    db.query.mockResolvedValueOnce({ rows: [{ agent_id: 99 }] }); // déjà pris par l'agent 99
+    const reponse = await request(app)
+      .patch('/api/tickets/1/assigner')
+      .set('Authorization', `Bearer ${tokenAgent}`);
+    expect(reponse.status).toBe(409);
   });
 
   test('Assigner un ticket en tant que client → 403', async () => {
@@ -366,6 +456,7 @@ describe('Tickets', () => {
   });
 
   test('Historique des messages d\'un ticket → 200', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, agent_id: null, client_id: 5 }] }); // vérif accès (admin)
     db.query.mockResolvedValueOnce({ rows: [{ id: 1, contenu: 'Bonjour' }] });
     const reponse = await request(app)
       .get('/api/tickets/1/messages')
@@ -374,7 +465,17 @@ describe('Tickets', () => {
     expect(reponse.body.data).toBeDefined();
   });
 
+  test('Historique des messages — agent non assigné → 403', async () => {
+    const tokenAgent = jwt.sign({ id: 3, role: 'agent', nom: 'Agent' }, process.env.JWT_SECRET);
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, agent_id: 99, client_id: 5 }] }); // pris par un autre agent
+    const reponse = await request(app)
+      .get('/api/tickets/1/messages')
+      .set('Authorization', `Bearer ${tokenAgent}`);
+    expect(reponse.status).toBe(403);
+  });
+
   test('Changer le statut d\'un ticket → 200', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, agent_id: null, client_id: 5 }] }); // vérif accès (admin)
     db.query.mockResolvedValueOnce({ rows: [{ id: 1, statut: 'ferme' }] });
     const reponse = await request(app)
       .patch('/api/tickets/1/statut')
@@ -465,7 +566,9 @@ describe('Compléments couverture', () => {
   });
 
   test('Ajouter un message à un ticket → 201', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ id: 1, contenu: 'Bonjour' }] });
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, agent_id: null, client_id: 5 }] }); // vérif accès : ticket
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // vérif accès : clients WHERE utilisateur_id (client id=2 → clients.id=5)
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, contenu: 'Bonjour' }] }); // INSERT message
     const reponse = await request(app)
       .post('/api/tickets/1/messages')
       .set('Authorization', `Bearer ${tokenClient}`)
@@ -486,6 +589,16 @@ describe('Compléments couverture', () => {
     db.query.mockResolvedValueOnce({ rows: [{ id: 1, type: 'video', statut: 'termine' }] });
     const appels = await ticketsController.historiqueAppels(1);
     expect(appels).toHaveLength(1);
+  });
+
+  test('GET /api/tickets/:id/appels → 200', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, agent_id: null, client_id: 5 }] }); // vérif accès (admin)
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, type: 'audio' }] });
+    const reponse = await request(app)
+      .get('/api/tickets/1/appels')
+      .set('Authorization', `Bearer ${tokenAdmin}`);
+    expect(reponse.status).toBe(200);
+    expect(reponse.body.data).toHaveLength(1);
   });
 
   test('Violation de clé étrangère (23503) → 422 via le middleware d\'erreurs', async () => {
@@ -509,11 +622,65 @@ describe('Compléments couverture', () => {
   });
 
   test('Historique des messages avec curseur ?avant= → 200', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, agent_id: null, client_id: 5 }] }); // vérif accès (admin)
     db.query.mockResolvedValueOnce({ rows: [{ id: 2, contenu: 'Salut' }] });
     const reponse = await request(app)
       .get('/api/tickets/1/messages?avant=2026-01-01T00:00:00Z')
       .set('Authorization', `Bearer ${tokenAdmin}`);
     expect(reponse.status).toBe(200);
+  });
+});
+
+// ───────────── Facturation automatique ─────────────
+describe('Facturation automatique', () => {
+  test('genererFacturesMensuelles crée une facture par client actif non facturé', async () => {
+    const facturesController = require('../src/controllers/facturesController');
+    db.query.mockResolvedValueOnce({
+      rows: [{ client_id: 1, prix_mensuel_fcfa: 8000 }, { client_id: 2, prix_mensuel_fcfa: 3000 }],
+    }); // SELECT clients à facturer
+    db.query.mockResolvedValueOnce({ rows: [{ count: '0' }] }); // genererReference client 1
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, client_id: 1, montant_fcfa: 8000 }] }); // INSERT client 1
+    db.query.mockResolvedValueOnce({ rows: [{ count: '1' }] }); // genererReference client 2
+    db.query.mockResolvedValueOnce({ rows: [{ id: 2, client_id: 2, montant_fcfa: 3000 }] }); // INSERT client 2
+
+    const factures = await facturesController.genererFacturesMensuelles('2026-08');
+    expect(factures).toHaveLength(2);
+    expect(factures[0].montant_fcfa).toBe(8000);
+  });
+
+  test('genererFacturesMensuelles est idempotent (aucun client à facturer)', async () => {
+    const facturesController = require('../src/controllers/facturesController');
+    db.query.mockResolvedValueOnce({ rows: [] }); // aucun client sans facture ce mois
+    const factures = await facturesController.genererFacturesMensuelles('2026-08');
+    expect(factures).toHaveLength(0);
+  });
+
+  test('marquerFacturesEnRetard fait basculer les factures impayées échues', async () => {
+    const facturesController = require('../src/controllers/facturesController');
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, reference: 'FAC-202607-0001' }] });
+    const factures = await facturesController.marquerFacturesEnRetard();
+    expect(factures).toHaveLength(1);
+  });
+
+  test('POST /api/factures/generer-mensuelles (admin) → 201', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ client_id: 1, prix_mensuel_fcfa: 8000 }] });
+    db.query.mockResolvedValueOnce({ rows: [{ count: '0' }] });
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, montant_fcfa: 8000 }] });
+
+    const reponse = await request(app)
+      .post('/api/factures/generer-mensuelles')
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .send({ periode: '2026-08' });
+
+    expect(reponse.status).toBe(201);
+    expect(reponse.body.genere).toBe(1);
+  });
+
+  test('POST /api/factures/generer-mensuelles sans être admin → 403', async () => {
+    const reponse = await request(app)
+      .post('/api/factures/generer-mensuelles')
+      .set('Authorization', `Bearer ${tokenClient}`);
+    expect(reponse.status).toBe(403);
   });
 });
 

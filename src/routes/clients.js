@@ -133,4 +133,38 @@ router.patch(
 // 🟢 SUPPRESSION D'UN CLIENT
 router.delete('/:id', verifierJWT, garderRole('admin'), clientsController.supprimer);
 
+/**
+ * @openapi
+ * /api/clients/{id}/forfait:
+ *   patch:
+ *     summary: Change le forfait d'un client (self-service ou admin)
+ *     tags: [Clients]
+ *     security: [{ BearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [forfait_id]
+ *             properties:
+ *               forfait_id: { type: integer, example: 2 }
+ *     responses:
+ *       200: { description: Forfait mis à jour }
+ *       403: { description: "Un client ne peut modifier que son propre forfait" }
+ */
+router.patch(
+  '/:id/forfait',
+  verifierJWT,
+  body('forfait_id').isInt().withMessage('forfait_id doit être un entier'),
+  validerRequete,
+  (req, res, next) => {
+    // Un client ne peut changer que SON PROPRE forfait (id ou utilisateur_id).
+    if (req.user.role === 'client' && String(req.user.id) !== String(req.params.id)) {
+      return res.status(403).json({ message: "Vous ne pouvez modifier que votre propre forfait" });
+    }
+    next();
+  },
+  clientsController.changerForfait
+);
+
 module.exports = router;

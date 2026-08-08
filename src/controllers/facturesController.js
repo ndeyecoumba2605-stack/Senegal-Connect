@@ -64,4 +64,48 @@ async function changerStatut(id, statut) {
   return resultat.rows[0];
 }
 
-module.exports = { lister, detail, creer, changerStatut };
+// ── Génération automatique des factures mensuelles ──────────────────────
+// Facture un mois pour tous les clients actifs abonnés à un forfait, en
+// évitant tout doublon si la fonction est rejouée (idempotent) : on ne crée
+// une facture que pour les clients qui n'en ont pas déjà une sur la période.
+async function genererFacturesMensuelles(periode) {
+  const p = periode || new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+
+  const clientsAFacturer = await db.query(
+    `SELECT c.id AS client_id, f.prix_mensuel_fcfa
+     FROM clients c
+     JOIN forfaits f ON f.id = c.forfait_id
+     WHERE c.statut = 'actif'
+       AND NOT EXISTS (
+         SELECT 1 FROM factures fa WHERE fa.client_id = c.id AND fa.periode = $1
+       )`,
+    [p]
+  );
+
+  const facturesCreees = [];
+  for (const client of clientsAFacturer.rows) {
+    const facture = await creer({
+      client_id: client.client_id,
+      periode: p,
+      montant_fcfa: client.prix_mensuel_fcfa,
+    });
+    facturesCreees.push(facture);
+  }
+  return facturesCreees;
+}
+
+// ── Passage automatique en retard ────────────────────────────────────────
+// Toute facture "impayee" dont l'échéance est dépassée devient "en_retard".
+async function marquerFacturesEnRetard() {
+  const resultat = await db.query(
+    `UPDATE factures SET statut = 'en_retard'
+     WHERE statut = 'impayee' AND date_echeance < NOW()
+     RETURNING id, reference, client_id`
+  );
+  return resultat.rows;
+}
+
+module.exports = {
+  lister, detail, creer, changerStatut,
+  genererFacturesMensuelles, marquerFacturesEnRetard,
+};

@@ -57,6 +57,7 @@ app.use('/api/forfaits', require('./routes/forfaits'));
 app.use('/api/factures', require('./routes/factures'));
 app.use('/api/tickets', require('./routes/tickets'));
 app.use('/api/stats', require('./routes/stats'));
+app.use('/api/utilisateurs', require('./routes/utilisateurs'));
 app.get('/api/health', (req, res) =>
   res.json({ statut: 'ok', version: '1.0.0', uptime: process.uptime(), env: process.env.NODE_ENV })
 );
@@ -71,6 +72,12 @@ const { PeerServer } = require('peer');
 let peerServer;
 if (process.env.NODE_ENV !== 'test') {
   peerServer = PeerServer({ port: 3001, path: '/peerjs' });
+}
+
+// Tâches planifiées : facturation mensuelle automatique + passage en retard
+if (process.env.NODE_ENV !== 'test') {
+  const { demarrerTachesFacturation } = require('./jobs/facturation');
+  demarrerTachesFacturation();
 }
 
 // Gestion des erreurs

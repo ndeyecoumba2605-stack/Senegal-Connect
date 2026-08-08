@@ -185,4 +185,30 @@ async function supprimer(req, res, next) {
   }
 }
 
-module.exports = { lister, obtenirDetail, creer, modifier, changerStatut, supprimer };
+// ── Changement de forfait (self-service) ─────────────────────────────────
+// Un client peut changer lui-même de forfait (ex: depuis son tableau de
+// bord) ; un admin peut le faire pour n'importe quel client. Le contrôle
+// "le client ne peut cibler que sa propre fiche" est fait dans la route.
+async function changerForfait(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { forfait_id } = req.body;
+
+    const forfait = await query('SELECT * FROM forfaits WHERE id = $1 AND actif = true', [forfait_id]);
+    if (forfait.rows.length === 0) {
+      return res.status(422).json({ message: "Le forfait demandé n'existe pas ou n'est plus disponible" });
+    }
+
+    const resultat = await query(
+      `UPDATE clients SET forfait_id = $1 WHERE id = $2 OR utilisateur_id = $2 RETURNING *`,
+      [forfait_id, id]
+    );
+    if (resultat.rows.length === 0) return res.status(404).json({ message: 'Client introuvable' });
+
+    res.json({ ...resultat.rows[0], forfait: forfait.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { lister, obtenirDetail, creer, modifier, changerStatut, changerForfait, supprimer };

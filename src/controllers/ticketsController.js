@@ -87,11 +87,53 @@ async function changerStatutTicket(id, statut) {
 }
 
 async function assignerAgent(id, agentId) {
+  // Exclusivité : un ticket déjà pris en charge par un AUTRE agent ne peut pas
+  // être réassigné. Réappeler avec le même agentId (idempotent) reste autorisé.
+  const existant = await db.query(`SELECT agent_id FROM tickets WHERE id = $1`, [id]);
+  if (existant.rows.length === 0) return null;
+  if (existant.rows[0].agent_id && existant.rows[0].agent_id !== agentId) {
+    const erreur = new Error('Ce ticket est déjà pris en charge par un autre agent');
+    erreur.statut409 = true;
+    throw erreur;
+  }
+
   const resultat = await db.query(
     `UPDATE tickets SET agent_id = $1, statut = 'en_cours' WHERE id = $2 RETURNING *`,
     [agentId, id]
   );
   return resultat.rows[0];
+}
+
+// ── Contrôle d'accès à un ticket ─────────────────────────────────────────
+// Règles :
+//  - admin              → accès total (supervision, réassignation possible)
+//  - agent               → accès uniquement si le ticket n'est pas encore
+//                          assigné (pour pouvoir le prendre en charge) OU
+//                          s'il lui est déjà assigné. Un ticket pris en
+//                          charge par un autre agent est invisible pour lui.
+//  - client              → accès uniquement à ses propres tickets
+async function verifierAccesTicket(ticketId, user) {
+  const resultat = await db.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+  const ticket = resultat.rows[0];
+  if (!ticket) return { ticket: null, autorise: false };
+
+  if (user.role === 'admin') return { ticket, autorise: true };
+
+  if (user.role === 'agent') {
+    const autorise = !ticket.agent_id || ticket.agent_id === user.id;
+    return { ticket, autorise };
+  }
+
+  if (user.role === 'client') {
+    const clientRes = await db.query(
+      `SELECT id FROM clients WHERE utilisateur_id = $1`,
+      [user.id]
+    );
+    const monClientId = clientRes.rows[0]?.id;
+    return { ticket, autorise: monClientId === ticket.client_id };
+  }
+
+  return { ticket, autorise: false };
 }
 
 async function historiqueMessages(ticketId, avant, limite = 50) {
@@ -134,6 +176,7 @@ module.exports = {
   creerTicket,
   changerStatutTicket,
   assignerAgent,
+  verifierAccesTicket,
   historiqueMessages,
   historiqueAppels,
   creerMessage,

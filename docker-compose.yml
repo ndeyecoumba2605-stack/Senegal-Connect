@@ -4,6 +4,11 @@ services:
     ports:
       - "3000:3000"
     env_file: .env
+    environment:
+      # Écrase DB_HOST du .env (qui vise "localhost" pour un usage hors Docker) :
+      # à l'intérieur du réseau Docker, la base est joignable via le nom du service.
+      DB_HOST: postgres
+      NODE_ENV: production
     volumes:
       - ./uploads:/app/uploads
       - ./logs:/app/logs

@@ -1,5 +1,6 @@
 const express = require('express');
 const { body, param, validationResult } = require('express-validator');
+const db = require('../config/db');
 const clientsController = require('../controllers/clientsController');
 const { verifierJWT, garderRole } = require('../middleware/auth');
 
@@ -131,16 +132,32 @@ router.patch(
   verifierJWT,
   body('statut').isIn(['actif', 'suspendu', 'resilie']).withMessage('Statut invalide'),
   validerRequete,
-  (req, res, next) => {
+  async (req, res, next) => {
     if (req.user.role === 'client') {
-      const ciblePropreCompte = String(req.user.id) === String(req.params.id);
       const statutAutorise = ['actif', 'suspendu'].includes(req.body.statut);
-      if (!ciblePropreCompte || !statutAutorise) {
+      if (!statutAutorise) {
         return res.status(403).json({
           message: 'Vous ne pouvez que suspendre ou réactiver votre propre compte',
         });
       }
-      return next();
+
+      try {
+        // ⚠️ CORRIGÉ : req.user.id est un ID de la table "utilisateurs" (issu du
+        // JWT), mais req.params.id désigne ici un ID de la table "clients" —
+        // ce sont deux espaces d'ID différents. On résout l'un vers l'autre
+        // avant de comparer, sinon la comparaison échoue systématiquement et
+        // un client ne peut jamais suspendre son propre compte.
+        const resultat = await db.query('SELECT id FROM clients WHERE utilisateur_id = $1', [req.user.id]);
+        const monClientId = resultat.rows[0]?.id;
+        if (!monClientId || String(monClientId) !== String(req.params.id)) {
+          return res.status(403).json({
+            message: 'Vous ne pouvez que suspendre ou réactiver votre propre compte',
+          });
+        }
+        return next();
+      } catch (err) {
+        return next(err);
+      }
     }
     return garderRole('admin')(req, res, next);
   },

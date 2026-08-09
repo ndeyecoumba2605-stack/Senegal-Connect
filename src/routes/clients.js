@@ -121,16 +121,39 @@ router.post('/', verifierJWT, garderRole('admin'), validationClient, validerRequ
 router.put('/:id', verifierJWT, garderRole('admin'), validationClient, validerRequete, clientsController.modifier);
 
 // 🟢 CHANGEMENT DE STATUT
+// Un admin peut définir n'importe quel statut sur n'importe quel client.
+// Un client peut uniquement se suspendre/réactiver LUI-MÊME (désactivation
+// temporaire) — jamais se résilier via cette route ni toucher à un autre
+// compte : la résiliation reste une décision admin (ou passe par la
+// suppression de compte self-service ci-dessous).
 router.patch(
   '/:id/statut',
   verifierJWT,
-  garderRole('admin'),
   body('statut').isIn(['actif', 'suspendu', 'resilie']).withMessage('Statut invalide'),
   validerRequete,
+  (req, res, next) => {
+    if (req.user.role === 'client') {
+      const ciblePropreCompte = String(req.user.id) === String(req.params.id);
+      const statutAutorise = ['actif', 'suspendu'].includes(req.body.statut);
+      if (!ciblePropreCompte || !statutAutorise) {
+        return res.status(403).json({
+          message: 'Vous ne pouvez que suspendre ou réactiver votre propre compte',
+        });
+      }
+      return next();
+    }
+    return garderRole('admin')(req, res, next);
+  },
   clientsController.changerStatut
 );
 
-// 🟢 SUPPRESSION D'UN CLIENT
+// 🟢 SUPPRESSION DE SON PROPRE COMPTE (self-service, client connecté)
+// IMPORTANT : déclarée AVANT "/:id" pour que "DELETE /me" ne soit pas
+// interprété comme "DELETE /:id" avec id="me" (Express matche dans l'ordre
+// de déclaration), ce qui l'aurait fait tomber sur la route admin-only.
+router.delete('/me', verifierJWT, clientsController.supprimerMonCompte);
+
+// 🟢 SUPPRESSION D'UN CLIENT (admin)
 router.delete('/:id', verifierJWT, garderRole('admin'), clientsController.supprimer);
 
 /**

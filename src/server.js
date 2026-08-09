@@ -37,7 +37,15 @@ app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 app.use((req, res, next) => {
-  if (req.path.endsWith('.html') || req.path === '/') {
+  // En développement, on désactive systématiquement le cache navigateur sur
+  // TOUS les fichiers servis statiquement (HTML, JS, CSS) : express.static
+  // ne fixe pas de Cache-Control par défaut, mais les navigateurs mettent
+  // quand même souvent en cache agressive les .js/.css sans revalidation
+  // explicite lors d'un simple rechargement — ce qui fait exécuter une
+  // ancienne version du code après une mise à jour des fichiers, sans
+  // qu'aucune erreur ne le signale. no-store force une requête réseau
+  // fraîche à chaque chargement de page.
+  if (/\.(html|js|css)$/.test(req.path) || req.path === '/') {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   }
   next();

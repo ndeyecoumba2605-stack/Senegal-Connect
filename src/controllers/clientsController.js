@@ -85,7 +85,7 @@ async function obtenirDetail(req, res, next) {
 
     res.json({
       ...client.rows[0],
-      derniere_facture: derniereFacture.rows[0] || null,
+      derniere_facture: derniereFacture.rows[0]?.montant_fcfa || null,
       ticket_en_cours: ticketEnCours.rows[0] || null,
     });
   } catch (err) {
@@ -145,19 +145,28 @@ async function changerStatut(req, res, next) {
     const { id } = req.params;
     const { statut } = req.body;
 
+    // Le paramètre :id peut être clients.id OU utilisateurs.id (self-service) :
+    // on résout systématiquement le vrai clients.id avant toute vérification,
+    // sinon la vérification des factures impayées ci-dessous comparerait
+    // client_id (clients.id) à un utilisateurs.id et ne matcherait jamais.
+    const clientRes = await query(
+      `SELECT id FROM clients WHERE id = $1 OR utilisateur_id = $1`,
+      [id]
+    );
+    if (clientRes.rows.length === 0) return res.status(404).json({ message: 'Client introuvable' });
+    const clientId = clientRes.rows[0].id;
+
     if (statut === 'resilie') {
       const impayees = await query(
         `SELECT COUNT(*) FROM factures WHERE client_id = $1 AND statut IN ('impayee','en_retard')`,
-        [id]
+        [clientId]
       );
       if (parseInt(impayees.rows[0].count, 10) > 0) {
         return res.status(409).json({ message: 'Impossible de résilier : le client a des factures impayées' });
       }
     }
 
-    const resultat = await query(`UPDATE clients SET statut = $1 WHERE id = $2 RETURNING *`, [statut, id]);
-    if (resultat.rows.length === 0) return res.status(404).json({ message: 'Client introuvable' });
-
+    const resultat = await query(`UPDATE clients SET statut = $1 WHERE id = $2 RETURNING *`, [statut, clientId]);
     res.json(resultat.rows[0]);
   } catch (err) {
     next(err);
@@ -168,17 +177,51 @@ async function supprimer(req, res, next) {
   try {
     const { id } = req.params;
 
+    const clientRes = await query(
+      `SELECT id FROM clients WHERE id = $1 OR utilisateur_id = $1`,
+      [id]
+    );
+    if (clientRes.rows.length === 0) return res.status(404).json({ message: 'Client introuvable' });
+    const clientId = clientRes.rows[0].id;
+
     const impayees = await query(
       `SELECT COUNT(*) FROM factures WHERE client_id = $1 AND statut IN ('impayee','en_retard')`,
-      [id]
+      [clientId]
     );
     if (parseInt(impayees.rows[0].count, 10) > 0) {
       return res.status(409).json({ message: 'Impossible de supprimer : le client a des factures impayées' });
     }
 
-    const resultat = await query('DELETE FROM clients WHERE id = $1 RETURNING id', [id]);
-    if (resultat.rows.length === 0) return res.status(404).json({ message: 'Client introuvable' });
+    await query('DELETE FROM clients WHERE id = $1', [clientId]);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
 
+// ── Suppression de son propre compte (self-service) ──────────────────────
+// Supprime le compte utilisateur ENTIER (pas seulement la fiche client) :
+// utilisateurs.id est la clé référencée par clients.utilisateur_id avec
+// ON DELETE CASCADE, donc supprimer la ligne utilisateurs entraîne
+// automatiquement la suppression de la fiche client, et met agent_id à NULL
+// sur les tickets déjà traités (ON DELETE SET NULL), sans rien casser.
+async function supprimerMonCompte(req, res, next) {
+  try {
+    const utilisateurId = req.user.id;
+
+    const clientRes = await query(`SELECT id FROM clients WHERE utilisateur_id = $1`, [utilisateurId]);
+    if (clientRes.rows.length === 0) return res.status(404).json({ message: 'Profil client introuvable' });
+    const clientId = clientRes.rows[0].id;
+
+    const impayees = await query(
+      `SELECT COUNT(*) FROM factures WHERE client_id = $1 AND statut IN ('impayee','en_retard')`,
+      [clientId]
+    );
+    if (parseInt(impayees.rows[0].count, 10) > 0) {
+      return res.status(409).json({ message: 'Impossible de supprimer votre compte : vous avez des factures impayées' });
+    }
+
+    await query('DELETE FROM utilisateurs WHERE id = $1', [utilisateurId]);
     res.status(204).send();
   } catch (err) {
     next(err);
@@ -211,4 +254,7 @@ async function changerForfait(req, res, next) {
   }
 }
 
-module.exports = { lister, obtenirDetail, creer, modifier, changerStatut, changerForfait, supprimer };
+module.exports = {
+  lister, obtenirDetail, creer, modifier, changerStatut, changerForfait,
+  supprimer, supprimerMonCompte,
+};

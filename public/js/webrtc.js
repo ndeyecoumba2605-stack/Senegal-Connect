@@ -267,6 +267,7 @@ document.addEventListener('click', (e) => {
   if (btnPartage) {
     (async () => {
       if (!connexionMedia) return;
+      const indicateur = document.getElementById('indicateur-partage-ecran');
       try {
         const streamEcran = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 } });
         const pisteEcran = streamEcran.getVideoTracks()[0];
@@ -274,6 +275,8 @@ document.addEventListener('click', (e) => {
         const sender = connexionMedia.peerConnection.getSenders().find((s) => s.track && s.track.kind === 'video');
         if (sender) {
           await sender.replaceTrack(pisteEcran);
+          btnPartage.style.background = '#22c55e';
+          if (indicateur) indicateur.classList.remove('cache');
           if (typeof socket !== 'undefined') {
             socket.emit('appel:controle', { ticketId: window.ticketActifId, partageEcran: true });
           }
@@ -281,6 +284,8 @@ document.addEventListener('click', (e) => {
           pisteEcran.onended = async () => {
             const streamCamera = await navigator.mediaDevices.getUserMedia({ video: true });
             await sender.replaceTrack(streamCamera.getVideoTracks()[0]);
+            btnPartage.style.background = '#334155';
+            if (indicateur) indicateur.classList.add('cache');
             if (typeof socket !== 'undefined') {
               socket.emit('appel:controle', { ticketId: window.ticketActifId, partageEcran: false });
             }
@@ -300,5 +305,22 @@ document.addEventListener('click', (e) => {
 });
 
 window.gererControleDistant = function ({ micro, video, partageEcran }) {
-  // Optionnel : Ajouter ici une mise à jour d'indicateurs visuels distants (ex: icône micro coupé sur le correspondant)
+  // Icônes visuelles côté distant, conformément au cahier des charges
+  // (🔇 micro coupé, 📷 OFF caméra coupée, écran partagé actif).
+  const conteneurVideo = document.getElementById('container-flux-video');
+  if (!conteneurVideo) return;
+
+  let badge = document.getElementById('badge-etat-distant');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'badge-etat-distant';
+    badge.style.cssText = 'position:absolute; top:10px; left:10px; display:flex; gap:0.4rem; z-index:2;';
+    conteneurVideo.appendChild(badge);
+  }
+
+  const icones = [];
+  if (micro === false) icones.push('<span style="background:#ef4444;color:#fff;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.8rem;">🔇</span>');
+  if (video === false) icones.push('<span style="background:#ef4444;color:#fff;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.8rem;">📷 OFF</span>');
+  if (partageEcran === true) icones.push('<span style="background:#22c55e;color:#fff;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.8rem;"><i class="fa-solid fa-display"></i> Écran partagé</span>');
+  badge.innerHTML = icones.join('');
 };

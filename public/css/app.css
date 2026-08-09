@@ -388,6 +388,7 @@ body {
 /* Colonne 2 : Chat principal */
 .colonne-chat {
   flex: 1;
+  min-width: 0; /* Empêche un flex-item de forcer l'overflow du parent avec son contenu (bouton, titre...) */
   display: flex;
   flex-direction: column;
   background-color: #ffffff;
@@ -420,12 +421,15 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   background-color: #f8fafc;
   flex-shrink: 0; /* Bloque le haut du chat */
 }
 
 .actions-ticket {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
@@ -676,4 +680,52 @@ body {
 
 .barre-controles-appel .btn-raccrocher:hover {
   background-color: #dc2626;
+}
+
+/* ==========================================================================
+   9. RESPONSIVE MOBILE — empile la liste des tickets et le chat au lieu de
+   les afficher côte à côte (cause de chevauchement visuel sur petit écran)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .corps-app {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .colonne-tickets {
+    width: 100%;
+    max-height: 240px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .colonne-chat {
+    min-height: 420px;
+  }
+
+  .entete-ticket {
+    padding: 0.65rem 0.85rem;
+  }
+
+  .actions-ticket button {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  /* Sur mobile, une fois un ticket ouvert, on masque la liste pour ne
+     montrer que la conversation — évite tout chevauchement. Réactivé en
+     cliquant sur "◀ Retour aux tickets". */
+  .corps-app.ticket-ouvert-mobile .colonne-tickets {
+    display: none;
+  }
+
+  #btn-retour-liste-mobile {
+    display: inline-flex !important;
+  }
+}
+
+@media (min-width: 769px) {
+  #btn-retour-liste-mobile {
+    display: none !important;
+  }
 }

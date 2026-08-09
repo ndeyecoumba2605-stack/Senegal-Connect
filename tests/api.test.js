@@ -247,7 +247,8 @@ describe('Clients CRUD', () => {
   });
 
   test('Changer le statut d\'un client → 200', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ id: 5, statut: 'suspendu' }] });
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // résolution clients.id
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5, statut: 'suspendu' }] }); // UPDATE
     const reponse = await request(app)
       .patch('/api/clients/5/statut')
       .set('Authorization', `Bearer ${tokenAdmin}`)
@@ -256,7 +257,34 @@ describe('Clients CRUD', () => {
     expect(reponse.body.statut).toBe('suspendu');
   });
 
+  test('Un client peut suspendre son propre compte → 200', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // résolution clients.id (utilisateur_id=2)
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5, statut: 'suspendu' }] }); // UPDATE
+    const reponse = await request(app)
+      .patch('/api/clients/2/statut')
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ statut: 'suspendu' });
+    expect(reponse.status).toBe(200);
+  });
+
+  test('Un client ne peut pas résilier son propre compte via ce endpoint → 403', async () => {
+    const reponse = await request(app)
+      .patch('/api/clients/2/statut')
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ statut: 'resilie' });
+    expect(reponse.status).toBe(403);
+  });
+
+  test('Un client ne peut pas changer le statut d\'un autre client → 403', async () => {
+    const reponse = await request(app)
+      .patch('/api/clients/999/statut')
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ statut: 'suspendu' });
+    expect(reponse.status).toBe(403);
+  });
+
   test('Résilier un client avec factures impayées → 409', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // résolution clients.id
     db.query.mockResolvedValueOnce({ rows: [{ count: '1' }] });
     const reponse = await request(app)
       .patch('/api/clients/5/statut')
@@ -266,6 +294,7 @@ describe('Clients CRUD', () => {
   });
 
   test('Supprimer un client sans factures impayées → 204', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // résolution clients.id
     db.query.mockResolvedValueOnce({ rows: [{ count: '0' }] });
     db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] });
     const reponse = await request(app).delete('/api/clients/5').set('Authorization', `Bearer ${tokenAdmin}`);
@@ -273,6 +302,7 @@ describe('Clients CRUD', () => {
   });
 
   test('Supprimer un client avec factures impayées → 409', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // résolution clients.id
     db.query.mockResolvedValueOnce({ rows: [{ count: '2' }] });
     const reponse = await request(app).delete('/api/clients/5').set('Authorization', `Bearer ${tokenAdmin}`);
     expect(reponse.status).toBe(409);
@@ -284,6 +314,21 @@ describe('Clients CRUD', () => {
       .set('Authorization', `Bearer ${tokenClient}`)
       .send({ nom: 'A', prenom: 'B', email: 'a@a.com', msisdn: '+221771234567', forfait_id: 1 });
     expect(reponse.status).toBe(403);
+  });
+
+  test('Un client supprime lui-même son compte (sans factures impayées) → 204', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // SELECT clients WHERE utilisateur_id
+    db.query.mockResolvedValueOnce({ rows: [{ count: '0' }] }); // vérif factures impayées
+    db.query.mockResolvedValueOnce({ rows: [] }); // DELETE utilisateurs (cascade)
+    const reponse = await request(app).delete('/api/clients/me').set('Authorization', `Bearer ${tokenClient}`);
+    expect(reponse.status).toBe(204);
+  });
+
+  test('Un client ne peut pas supprimer son compte avec des factures impayées → 409', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] });
+    db.query.mockResolvedValueOnce({ rows: [{ count: '1' }] });
+    const reponse = await request(app).delete('/api/clients/me').set('Authorization', `Bearer ${tokenClient}`);
+    expect(reponse.status).toBe(409);
   });
 
   test('Un client change lui-même de forfait → 200', async () => {
@@ -646,6 +691,18 @@ describe('Facturation automatique', () => {
     const factures = await facturesController.genererFacturesMensuelles('2026-08');
     expect(factures).toHaveLength(2);
     expect(factures[0].montant_fcfa).toBe(8000);
+  });
+
+  test('creer() SANS date_echeance n\'envoie PAS de NULL explicite (sinon violation NOT NULL en base)', async () => {
+    const facturesController = require('../src/controllers/facturesController');
+    db.query.mockResolvedValueOnce({ rows: [{ count: '0' }] }); // genererReference
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, client_id: 1, montant_fcfa: 5000 }] }); // INSERT
+
+    await facturesController.creer({ client_id: 1, periode: '2026-08', montant_fcfa: 5000 });
+
+    const [sql, valeurs] = db.query.mock.calls[1]; // 2e appel = l'INSERT
+    expect(sql).not.toMatch(/date_echeance/);
+    expect(valeurs).toHaveLength(4); // pas de 5e paramètre (NULL) envoyé
   });
 
   test('genererFacturesMensuelles est idempotent (aucun client à facturer)', async () => {

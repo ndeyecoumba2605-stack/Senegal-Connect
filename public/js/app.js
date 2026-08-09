@@ -166,7 +166,14 @@ function initialiserInterfaceParRole() {
   if (role === 'client') {
     document.querySelectorAll('.role-admin-only, .role-admin-agent').forEach(el => el.style.display = 'none');
   } else if (role === 'agent') {
-    document.querySelectorAll('.role-admin-only').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.role-admin-only').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.role-admin-agent').forEach(el => el.style.display = '');
+  } else if (role === 'admin') {
+
+      // rechargement du catalogue de forfaits à l'initialisation de la page.
+      document.querySelectorAll('.role-admin-only, .role-admin-agent').forEach(el => el.style.display = '');
+      if (typeof chargerForfaits === 'function') chargerForfaits();
+      if (typeof chargerAgents === 'function') chargerAgents();
   }
 
   document.querySelectorAll('.role-dash').forEach(dash => dash.style.display = 'none');
@@ -241,6 +248,7 @@ document.querySelectorAll('.nav-btn').forEach(button => {
     if (targetId === 'sec-factures') chargerFactures();
     if (targetId === 'sec-mon-forfait') chargerMonForfait();
     if (targetId === 'sec-mes-factures') chargerMesFactures();
+    if (targetId === 'sec-mon-profil' && typeof window.chargerMonProfil === 'function') window.chargerMonProfil();
   });
 });
 
@@ -362,6 +370,12 @@ async function ouvrirTicket(ticket) {
   const chatActif = document.getElementById('chat-actif');
   if (chatVide) chatVide.classList.add('cache');
   if (chatActif) chatActif.classList.remove('cache');
+
+  // Sur mobile, masque la liste des tickets pour ne montrer que la
+  // conversation (cf. media query dans app.css) — évite tout chevauchement
+  // visuel entre la liste et l'en-tête du chat sur petit écran.
+  const corpsApp = document.querySelector('.corps-app');
+  if (corpsApp) corpsApp.classList.add('ticket-ouvert-mobile');
 
   const sujetEl = document.getElementById('sujet-ticket');
   const statutEl = document.getElementById('statut-ticket');
@@ -702,35 +716,26 @@ function initialiserFormulaireMessage() {
       const fichier = inputFichier.files[0];
       const formData = new FormData();
       formData.append('fichier', fichier);
-      formData.append('ticket_id', ticketActifId);
 
       try {
-        const res = await fetch(`/api/tickets/${ticketActifId}/fichiers`, {
+        // La route backend est POST /api/tickets/:id/fichier (singulier) et
+        // diffuse déjà elle-même "message:nouveau" / "fichier:partager" via
+        // Socket.IO une fois le fichier enregistré : pas besoin (et surtout
+        // pas correct) de ré-émettre "message:envoyer" en plus, ça créerait
+        // un message en double dans la conversation.
+        const res = await fetch(`/api/tickets/${ticketActifId}/fichier`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token()}` },
           body: formData
         });
 
-        if (res.ok) {
-          const json = await res.json();
-          const messageData = json.data || json;
-
-          let typeFichier = 'fichier';
-          if (fichier.type.startsWith('image/')) typeFichier = 'image';
-          else if (fichier.type.startsWith('audio/')) typeFichier = 'audio';
-
-          const urlFichier = messageData.fichier_url || messageData.url || messageData.path;
-
-          if (socket && socket.connected) {
-            socket.emit('message:envoyer', {
-              ticketId: ticketActifId,
-              contenu: urlFichier,
-              type: typeFichier
-            });
-          }
-        } else {
-          alert("Erreur serveur lors du téléchargement du fichier.");
+        if (!res.ok) {
+          let detail = '';
+          try { detail = (await res.json()).message || ''; } catch (e) { /* pas de JSON */ }
+          alert(`Erreur lors de l'envoi du fichier${detail ? ' : ' + detail : '.'}`);
         }
+        // En cas de succès, l'affichage du message se fait via l'écouteur
+        // socket "message:nouveau" déjà branché, comme pour un message texte.
       } catch (err) {
         console.error("Erreur upload du fichier :", err);
         alert("Échec de l'envoi du fichier.");
@@ -762,6 +767,15 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('#btn-raccrocher')) {
     masquerInterfaceAppel();
     if (typeof window.terminerAppel === 'function') window.terminerAppel();
+  }
+
+  if (e.target.closest('#btn-retour-liste-mobile')) {
+    const corpsApp = document.querySelector('.corps-app');
+    if (corpsApp) corpsApp.classList.remove('ticket-ouvert-mobile');
+    const chatVide = document.getElementById('chat-vide');
+    const chatActif = document.getElementById('chat-actif');
+    if (chatActif) chatActif.classList.add('cache');
+    if (chatVide) chatVide.classList.remove('cache');
   }
 
   // Prise en charge exclusive d'un ticket par un agent/admin.

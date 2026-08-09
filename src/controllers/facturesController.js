@@ -48,11 +48,27 @@ async function detail(id) {
 
 async function creer({ client_id, periode, montant_fcfa, date_echeance }) {
   const reference = await genererReference(periode);
-  const resultat = await db.query(
-    `INSERT INTO factures (client_id, reference, periode, montant_fcfa, date_echeance)
-     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-    [client_id, reference, periode, montant_fcfa, date_echeance || null]
-  );
+
+  // IMPORTANT : date_echeance est NOT NULL avec un DEFAULT (NOW()+15 jours)
+  // dans le schéma. Passer explicitement `null` comme valeur du paramètre
+  // ($5) N'EST PAS équivalent à omettre la colonne : Postgres refuse un NULL
+  // explicite même sur une colonne avec DEFAULT, et lève une violation de
+  // contrainte NOT NULL (→ 500). On ne doit inclure la colonne dans l'INSERT
+  // QUE si une valeur a réellement été fournie, pour laisser le DEFAULT
+  // s'appliquer sinon (cas de la facturation mensuelle automatique, qui ne
+  // fournit jamais date_echeance).
+  const resultat = date_echeance
+    ? await db.query(
+        `INSERT INTO factures (client_id, reference, periode, montant_fcfa, date_echeance)
+         VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+        [client_id, reference, periode, montant_fcfa, date_echeance]
+      )
+    : await db.query(
+        `INSERT INTO factures (client_id, reference, periode, montant_fcfa)
+         VALUES ($1,$2,$3,$4) RETURNING *`,
+        [client_id, reference, periode, montant_fcfa]
+      );
+
   return resultat.rows[0];
 }
 

@@ -73,6 +73,9 @@
         <button class="nav-btn role-client-only" data-target="sec-mes-factures" style="display:none;">
           <i class="fa-solid fa-file-invoice-dollar"></i> Mes Factures
         </button>
+        <button class="nav-btn role-client-only" data-target="sec-mon-profil" style="display:none;">
+          <i class="fa-solid fa-user"></i> Mon Profil
+        </button>
 
         <!-- Accessible par Tous -->
         <button class="nav-btn" data-target="sec-tickets">
@@ -360,6 +363,50 @@
         </div>
       </section>
 
+      <!-- ================= SECTION MON PROFIL (CLIENT) ================= -->
+      <section id="sec-mon-profil" class="page-section">
+        <div class="card-container">
+          <div class="card-header-stripe"></div>
+          <div class="card-body">
+            <h2 class="card-title"><i class="fa-solid fa-user"></i> Mon Profil</h2>
+            <div id="profil-infos-container" style="margin-top:1rem; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem;">
+              Chargement...
+            </div>
+          </div>
+        </div>
+
+        <div class="card-container" style="margin-top: 1.5rem; border: 1px solid #fecaca;">
+          <div class="card-header-stripe" style="background: #ef4444;"></div>
+          <div class="card-body">
+            <h2 class="card-title" style="color:#b91c1c;"><i class="fa-solid fa-triangle-exclamation"></i> Zone sensible</h2>
+            <p class="card-subtitle" style="margin: 0.25rem 0 1.25rem;">
+              Ces actions concernent votre compte. La suppression est définitive et irréversible.
+            </p>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; padding:1rem 0; border-top:1px solid #f1f5f9;">
+              <div>
+                <strong>Désactiver temporairement mon compte</strong>
+                <p style="margin:0.25rem 0 0; font-size:0.85rem; color:#64748b;">
+                  Suspend votre ligne. Vous pourrez la réactiver à tout moment en vous reconnectant.
+                </p>
+              </div>
+              <button id="btn-suspendre-compte" class="btn-action" style="background:#f59e0b;">Désactiver mon compte</button>
+            </div>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; padding:1rem 0; border-top:1px solid #f1f5f9;">
+              <div>
+                <strong>Supprimer définitivement mon compte</strong>
+                <p style="margin:0.25rem 0 0; font-size:0.85rem; color:#64748b;">
+                  Supprime toutes vos données (profil, tickets, historique). Impossible si vous avez des factures impayées.
+                </p>
+              </div>
+              <button id="btn-supprimer-compte" class="btn-danger">Supprimer mon compte</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
       <!-- ================= SECTION SUPPORT & CHAT TEMPS RÉEL ================= -->
       <section id="sec-tickets" class="page-section">
         <div class="card-container">
@@ -396,6 +443,9 @@
                 <div id="chat-actif" class="chat-actif cache">
                   <div class="entete-ticket">
                     <div>
+                      <button id="btn-retour-liste-mobile" class="btn-action" style="display:none; margin-bottom:0.5rem; background:#64748b;">
+                        <i class="fa-solid fa-arrow-left"></i> Retour aux tickets
+                      </button>
                       <h3 id="sujet-ticket"></h3>
                       <span id="statut-ticket" class="badge-statut"></span>
                     </div>
@@ -521,10 +571,17 @@
         <button id="btn-couper-cam" class="btn" style="background: #334155; color: white; width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 1.1rem;" title="Caméra">
           <i class="fa-solid fa-video"></i>
         </button>
+        <button id="btn-partage-ecran" class="btn" style="background: #334155; color: white; width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 1.1rem;" title="Partager l'écran">
+          <i class="fa-solid fa-display"></i>
+        </button>
         <button id="btn-raccrocher" class="btn" style="background: #ef4444; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" title="Terminer l'appel">
           <i class="fa-solid fa-phone-slash"></i> Raccrocher
         </button>
       </div>
+
+      <p id="indicateur-partage-ecran" class="cache" style="margin-top: 1rem; color: #22c55e; font-size: 0.85rem;">
+        <i class="fa-solid fa-display"></i> Partage d'écran actif
+      </p>
 
     </div>
   </div>
@@ -734,6 +791,26 @@
             feedback.style.color = '#10b981';
             feedback.textContent = 'Agent créé avec succès !';
             form.reset();
+
+            // Affichage immédiat (optimiste) du compte créé, sans attendre le
+            // rechargement réseau — évite l'impression que "rien ne se passe"
+            // si la requête GET qui suit est lente ou échoue ponctuellement.
+            const tbody = document.getElementById('agentsTableBody');
+            if (tbody) {
+              const ligneVide = tbody.querySelector('td[colspan]');
+              if (ligneVide) tbody.innerHTML = '';
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td style="font-weight:500;">${data.prenom || ''} ${data.nom || ''}</td>
+                <td>${data.email}</td>
+                <td><span class="badge-statut ${data.role === 'admin' ? 'ferme' : 'ouvert'}">${data.role}</span></td>
+                <td>0</td>
+                <td>${data.cree_le ? new Date(data.cree_le).toLocaleDateString('fr-FR') : "à l'instant"}</td>
+                <td></td>
+              `;
+              tbody.prepend(tr);
+            }
+
             chargerAgents();
           } else {
             feedback.style.color = '#ef4444';
@@ -825,6 +902,41 @@
             feedback.style.color = '#10b981';
             feedback.textContent = 'Forfait créé avec succès !';
             form.reset();
+
+            // Affichage immédiat (optimiste), même logique que pour les agents.
+            const tbody = document.getElementById('forfaitsTableBody');
+            if (tbody) {
+              const ligneVide = tbody.querySelector('td[colspan]');
+              if (ligneVide) tbody.innerHTML = '';
+              const estAdmin = window.currentUser?.role === 'admin';
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td style="font-weight:500;">${data.nom}</td>
+                <td>${data.quota_data_go} Go</td>
+                <td>${data.quota_voix_min} min</td>
+                <td>${Number(data.prix_mensuel_fcfa).toLocaleString('fr-FR')} FCFA</td>
+                <td>0</td>
+                <td>${estAdmin ? `<button class="btn-danger btn-supprimer-forfait" data-id="${data.id}" style="padding:0.35rem 0.75rem; font-size:0.8rem;">Supprimer</button>` : ''}</td>
+              `;
+              tbody.prepend(tr);
+              tbody.querySelector('.btn-supprimer-forfait')?.addEventListener('click', async function () {
+                if (!confirm('Supprimer ce forfait ?')) return;
+                try {
+                  const resDel = await fetch(`/api/forfaits/${this.dataset.id}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${jwtToken}` }
+                  });
+                  if (resDel.ok || resDel.status === 204) chargerForfaits();
+                  else {
+                    const dataDel = await resDel.json().catch(() => ({}));
+                    alert(dataDel.message || 'Impossible de supprimer ce forfait (des clients y sont peut-être abonnés).');
+                  }
+                } catch (err) {
+                  console.error('Erreur suppression forfait:', err);
+                }
+              });
+            }
+
             chargerForfaits();
           } else {
             feedback.style.color = '#ef4444';
@@ -1073,6 +1185,117 @@
         console.error('Erreur chargement mes factures:', err);
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:1rem;">Erreur de chargement.</td></tr>';
       }
+    }
+
+    // MON PROFIL (CLIENT) — infos + désactivation temporaire + suppression de compte
+    window.chargerMonProfil = async function chargerMonProfil() {
+      const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const u = window.currentUser;
+      const clientId = u?.client_id || u?.id;
+      const container = document.getElementById('profil-infos-container');
+      if (!container || !clientId) return;
+
+      try {
+        const res = await fetch(`/api/clients/${clientId}`, { headers: { Authorization: `Bearer ${jwtToken}` } });
+        if (!res.ok) throw new Error('Erreur serveur');
+        const client = await res.json();
+
+        const champ = (label, valeur) => `
+          <div style="padding:0.75rem; background:#f8fafc; border-radius:0.5rem;">
+            <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.03em;">${label}</div>
+            <div style="font-weight:600; margin-top:0.25rem;">${valeur ?? '—'}</div>
+          </div>
+        `;
+
+        container.innerHTML = [
+          champ('Nom & Prénom', `${client.prenom ?? ''} ${client.nom ?? ''}`.trim()),
+          champ('Email', client.email),
+          champ('MSISDN', client.msisdn),
+          champ('Statut du compte', `<span class="badge-statut ${client.statut}">${client.statut}</span>`),
+          champ('Inscrit le', client.date_inscription ? new Date(client.date_inscription).toLocaleDateString('fr-FR') : '—'),
+        ].join('');
+
+        // Le bouton "Désactiver" n'a de sens que si le compte est actuellement actif ;
+        // s'il est déjà suspendu, on propose plutôt de le réactiver.
+        const btnSuspendre = document.getElementById('btn-suspendre-compte');
+        if (btnSuspendre) {
+          if (client.statut === 'suspendu') {
+            btnSuspendre.textContent = 'Réactiver mon compte';
+            btnSuspendre.style.background = '#10b981';
+            btnSuspendre.dataset.statutCible = 'actif';
+          } else {
+            btnSuspendre.textContent = 'Désactiver mon compte';
+            btnSuspendre.style.background = '#f59e0b';
+            btnSuspendre.dataset.statutCible = 'suspendu';
+          }
+        }
+      } catch (err) {
+        console.error('Erreur chargement profil:', err);
+        container.innerHTML = '<span style="color:#ef4444;">Erreur de chargement du profil.</span>';
+      }
+    };
+
+    // Bouton "Désactiver / Réactiver mon compte"
+    const btnSuspendreCompte = document.getElementById('btn-suspendre-compte');
+    if (btnSuspendreCompte) {
+      btnSuspendreCompte.addEventListener('click', async () => {
+        const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+        const cible = btnSuspendreCompte.dataset.statutCible || 'suspendu';
+        const message = cible === 'suspendu'
+          ? 'Désactiver temporairement votre compte ? Vous pourrez le réactiver en vous reconnectant.'
+          : 'Réactiver votre compte maintenant ?';
+        if (!confirm(message)) return;
+
+        try {
+          const res = await fetch(`/api/clients/${window.currentUser.id}/statut`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwtToken}` },
+            body: JSON.stringify({ statut: cible }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            if (cible === 'suspendu') {
+              alert('Votre compte a été désactivé. Vous allez être déconnecté.');
+              if (typeof deconnexion === 'function') deconnexion();
+            } else {
+              alert('Votre compte a été réactivé.');
+              window.chargerMonProfil();
+            }
+          } else {
+            alert(data.message || 'Échec de la mise à jour de votre compte.');
+          }
+        } catch (err) {
+          console.error('Erreur changement statut compte:', err);
+          alert('Erreur réseau.');
+        }
+      });
+    }
+
+    // Bouton "Supprimer définitivement mon compte"
+    const btnSupprimerCompte = document.getElementById('btn-supprimer-compte');
+    if (btnSupprimerCompte) {
+      btnSupprimerCompte.addEventListener('click', async () => {
+        const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+        if (!confirm('Cette action est DÉFINITIVE : votre profil, vos tickets et votre historique seront supprimés. Continuer ?')) return;
+        if (!confirm('Dernière confirmation : voulez-vous vraiment supprimer votre compte ?')) return;
+
+        try {
+          const res = await fetch('/api/clients/me', {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${jwtToken}` },
+          });
+          if (res.ok || res.status === 204) {
+            alert('Votre compte a bien été supprimé. Au revoir.');
+            if (typeof deconnexion === 'function') deconnexion();
+          } else {
+            const data = await res.json().catch(() => ({}));
+            alert(data.message || "Impossible de supprimer votre compte pour l'instant.");
+          }
+        } catch (err) {
+          console.error('Erreur suppression compte:', err);
+          alert('Erreur réseau lors de la suppression.');
+        }
+      });
     }
   </script>
 </body>

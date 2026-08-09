@@ -193,6 +193,37 @@ body {
   min-height: 0;
 }
 
+/* Sections de contenu "simple" (listes, formulaires) : elles n'ont pas de
+   sous-zone avec son propre scroll interne (contrairement au chat, qui a
+   .fil-messages en overflow-y:auto et doit garder son en-tête/pied fixes).
+   Sans ce overflow-y:auto, le contenu qui dépasse la hauteur visible
+   (ex: tableau des forfaits sous le formulaire de création) est purement
+   et simplement invisible, sans aucun moyen de scroller pour le voir. */
+.page-section.active.scrollable-vertical {
+  overflow-y: auto;
+}
+
+/* .card-container utilise flex:1 + min-height:0 + overflow:hidden, pensé
+   pour UNE seule carte qui remplit toute la section (ex: dash-admin).
+   Mais les sections "scrollable-vertical" empilent PLUSIEURS cartes
+   (formulaire de création + tableau) : avec flex:1, chaque carte se
+   comprime pour tenir dans l'espace dispo et masque son propre contenu
+   en trop (son overflow:hidden), au lieu de laisser la section grandir
+   et scroller. On leur redonne leur hauteur naturelle ici, pour que ce
+   soit bien la section (overflow-y:auto ci-dessus) qui gère le scroll. */
+.page-section.scrollable-vertical .card-container {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+/* Même raison : .card-body est aussi flex:1 + overflow:hidden par défaut,
+   ce qui couperait encore le tableau même une fois .card-container corrigé
+   ci-dessus. */
+.page-section.scrollable-vertical .card-body {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
 /* ==========================================================================
    4. CARTOUCHE / CARDS ET DASHBOARD MULTI-RÔLES
    ========================================================================== */
@@ -440,16 +471,70 @@ body {
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
 }
 
 .actions-ticket button:hover {
   background: #f1f5f9;
 }
 
+/* Le sélecteur ".actions-ticket button" ci-dessus (fond blanc) est plus
+   spécifique que ".btn-action" seul et l'emportait sur lui, quel que soit
+   l'ordre des règles dans ce fichier — le bouton "Prendre en charge"
+   apparaissait donc délavé/blanc au lieu du vert plein attendu, même
+   quand il est cliquable. On cible l'ID pour reprendre la main. */
+#btn-assigner-ticket.btn-action {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+#btn-assigner-ticket.btn-action:hover:not(:disabled) {
+  background: #00693f;
+}
+
+#btn-assigner-ticket.btn-action:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
 .btn-danger {
   background-color: var(--secondary-color) !important;
   color: white !important;
   border: none !important;
+}
+
+/* Boutons ronds de contrôle d'appel (micro, caméra, partage d'écran).
+   line-height:1 empêche l'interligne par défaut du navigateur de décaler
+   le glyphe hors du centre géométrique du cercle ; le léger top:-1px
+   recentre optiquement l'icône fa-video, dont le glyphe (forme de caméra
+   avec un "objectif" en saillie) n'est pas parfaitement centré dans sa
+   propre boîte même quand le bouton parent l'est. */
+.btn-controle-appel {
+  background: #334155;
+  color: white;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-controle-appel i {
+  position: relative;
+  top: -1px;
+}
+
+.btn-controle-appel:hover {
+  background: #475569;
 }
 
 .btn-success {
@@ -477,6 +562,7 @@ body {
   font-size: 0.9rem;
   line-height: 1.4;
   position: relative;
+  overflow-wrap: break-word;
 }
 
 .bulle-message.envoye {

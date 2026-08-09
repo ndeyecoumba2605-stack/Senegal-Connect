@@ -1,6 +1,7 @@
 // =========================================================================
 // 1. ÉTAT GLOBAL & HELPER DE SESSION
 // =========================================================================
+console.log('[Sénégal Connect] app.js build 2026-08-09 19:33 UTC');
 let socket = null;
 let ticketActifId = null;
 let ticketActifDonnees = null; // dernier objet ticket ouvert (agent_id, client_id, statut...)
@@ -110,14 +111,23 @@ function connecterSocket() {
   socket.on('ticket:mis_a_jour', rafraichirTicket);
   socket.on('ticket:ferme', rafraichirTicket);
 
-  // Un autre agent vient de prendre en charge un ticket : on le retire /
-  // met à jour dans la liste locale pour que la file d'attente reste à jour.
+  // Un ticket vient d'être pris en charge par un agent (potentiellement un
+  // autre) : pour un AGENT, ce ticket doit purement et simplement disparaître
+  // de sa file s'il ne lui appartient pas — pas juste être mis à jour dans
+  // l'interface, sinon il resterait visible avec un statut "pris par un
+  // autre agent" au lieu de disparaître complètement comme demandé.
+  // L'admin, lui, voit tout : on met juste à jour l'entrée existante.
   socket.on('ticket:pris', ({ id, agent_id }) => {
+    const user = utilisateur();
     const index = tousLesTickets.findIndex(t => String(t.id) === String(id));
-    if (index !== -1) {
+
+    if (user?.role === 'agent' && String(agent_id) !== String(user.id)) {
+      if (index !== -1) tousLesTickets.splice(index, 1);
+    } else if (index !== -1) {
       tousLesTickets[index] = { ...tousLesTickets[index], agent_id, statut: 'en_cours' };
-      afficherTicketsFiltres();
     }
+    afficherTicketsFiltres();
+
     if (String(id) === String(ticketActifId)) {
       mettreAJourEtatPriseEnCharge({ ...ticketActifDonnees, agent_id });
     }
@@ -166,14 +176,7 @@ function initialiserInterfaceParRole() {
   if (role === 'client') {
     document.querySelectorAll('.role-admin-only, .role-admin-agent').forEach(el => el.style.display = 'none');
   } else if (role === 'agent') {
-      document.querySelectorAll('.role-admin-only').forEach(el => el.style.display = 'none');
-      document.querySelectorAll('.role-admin-agent').forEach(el => el.style.display = '');
-  } else if (role === 'admin') {
-
-      // rechargement du catalogue de forfaits à l'initialisation de la page.
-      document.querySelectorAll('.role-admin-only, .role-admin-agent').forEach(el => el.style.display = '');
-      if (typeof chargerForfaits === 'function') chargerForfaits();
-      if (typeof chargerAgents === 'function') chargerAgents();
+    document.querySelectorAll('.role-admin-only').forEach(el => el.style.display = 'none');
   }
 
   document.querySelectorAll('.role-dash').forEach(dash => dash.style.display = 'none');
@@ -430,11 +433,13 @@ function mettreAJourEtatPriseEnCharge(ticket) {
   const btnAppelVideo = document.getElementById('btn-appel-video');
 
   if (btnAssigner) {
-    if (user?.role === 'agent' || user?.role === 'admin') {
+    // L'admin supervise mais ne prend jamais en charge un ticket lui-même —
+    // seul un agent peut se l'assigner. Pour l'admin, ce bouton devient un
+    // simple indicateur en lecture seule de qui traite le ticket.
+    if (user?.role === 'agent') {
       btnAssigner.style.display = 'inline-flex';
       if (!ticket.agent_id) {
         btnAssigner.disabled = false;
-        btnAssigner.textContent = '';
         btnAssigner.innerHTML = '<i class="fa-solid fa-user-check"></i> Prendre en charge';
       } else if (String(ticket.agent_id) === String(user.id)) {
         btnAssigner.disabled = true;
@@ -443,6 +448,15 @@ function mettreAJourEtatPriseEnCharge(ticket) {
         btnAssigner.disabled = true;
         btnAssigner.innerHTML = '<i class="fa-solid fa-lock"></i> Pris en charge par un autre agent';
       }
+    } else if (user?.role === 'admin') {
+      btnAssigner.style.display = 'inline-flex';
+      btnAssigner.disabled = true;
+      const nomAgent = ticket.agent_nom
+        ? `${ticket.agent_prenom || ''} ${ticket.agent_nom}`.trim()
+        : null;
+      btnAssigner.innerHTML = nomAgent
+        ? `<i class="fa-solid fa-user-tie"></i> Pris en charge par ${nomAgent}`
+        : '<i class="fa-solid fa-circle-question"></i> Non assigné';
     } else {
       btnAssigner.style.display = 'none';
     }
@@ -543,25 +557,12 @@ function afficherMessage(message) {
   const estMoi = String(idExpediteur) === String(idMoi);
 
   const div = document.createElement('div');
-  div.className = `bulle-message ${estMoi ? 'moi' : 'autre'}`;
+  // .fil-messages est un conteneur flex (flex-direction: column) : float
+  // n'a AUCUN effet sur les enfants d'un flex container. L'alignement
+  // gauche/droite se fait via align-self, déjà défini dans app.css pour
+  // les classes "envoye" (droite, mes messages) et "recu" (gauche, reçus).
+  div.className = `bulle-message ${estMoi ? 'envoye' : 'recu'}`;
   if (message.id) div.dataset.messageId = message.id;
-
-  div.style.margin = '8px 0';
-  div.style.padding = '10px 14px';
-  div.style.borderRadius = '12px';
-  div.style.maxWidth = '70%';
-  div.style.clear = 'both';
-  div.style.wordBreak = 'break-word';
-
-  if (estMoi) {
-    div.style.float = 'right';
-    div.style.backgroundColor = '#10b981';
-    div.style.color = '#ffffff';
-  } else {
-    div.style.float = 'left';
-    div.style.backgroundColor = '#e2e8f0';
-    div.style.color = '#1e293b';
-  }
 
   let contenuHtml = '';
   if (message.type === 'texte' || !message.type) {
@@ -575,13 +576,8 @@ function afficherMessage(message) {
   }
 
   div.innerHTML = `${contenuHtml}<span class="accuse" style="font-size: 0.65rem; opacity: 0.8; float: right; margin-left: 8px; margin-top: 4px;">✓</span>`;
-  
+
   fil.appendChild(div);
-
-  const cleaner = document.createElement('div');
-  cleaner.style.clear = 'both';
-  fil.appendChild(cleaner);
-
   fil.scrollTop = fil.scrollHeight;
 }
 

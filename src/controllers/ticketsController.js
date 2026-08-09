@@ -1,6 +1,6 @@
 const db = require('../config/db');
 
-async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20 }) {
+async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20, restreindreAgentId }) {
   const conditions = [];
   const valeurs = [];
 
@@ -13,6 +13,15 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20 
     conditions.push(`c.utilisateur_id = $${valeurs.length}`); 
   }
 
+  // Exclusivité : un agent ne doit voir dans la file QUE les tickets non
+  // assignés (qu'il peut prendre) et ceux qui lui sont déjà assignés — jamais
+  // les tickets pris en charge par un collègue. (Un admin passe
+  // restreindreAgentId = undefined et voit tout.)
+  if (restreindreAgentId) {
+    valeurs.push(restreindreAgentId);
+    conditions.push(`(t.agent_id IS NULL OR t.agent_id = $${valeurs.length})`);
+  }
+
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const offset = (page - 1) * limite;
 
@@ -21,9 +30,17 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20 
     valeurs
   );
   
+  // LEFT JOIN vers utilisateurs pour exposer le nom du client ET celui de
+  // l'agent assigné (utile pour la vue admin : "quel agent a pris en charge
+  // ce ticket, pour quel client").
   const donnees = await db.query(
-    `SELECT t.* FROM tickets t 
+    `SELECT t.*,
+            uc.nom AS client_nom, uc.prenom AS client_prenom, c.msisdn AS client_msisdn,
+            ua.nom AS agent_nom, ua.prenom AS agent_prenom
+     FROM tickets t 
      JOIN clients c ON t.client_id = c.id 
+     JOIN utilisateurs uc ON uc.id = c.utilisateur_id
+     LEFT JOIN utilisateurs ua ON ua.id = t.agent_id
      ${where} 
      ORDER BY t.ouvert_le DESC 
      LIMIT $${valeurs.length + 1} OFFSET $${valeurs.length + 2}`,

@@ -37,6 +37,9 @@
       <button class="btn-logout" id="btn-deconnexion" title="Déconnexion">
         <i class="fa-solid fa-right-from-bracket"></i>
       </button>
+      <span style="position:absolute; bottom:4px; right:8px; font-size:10px; color:#94a3b8;" title="Sert à vérifier que le navigateur charge bien la dernière version des fichiers, pas une copie mise en cache.">
+        build 2026-08-09 19:33 UTC
+      </span>
     </div>
   </header>
 
@@ -88,7 +91,7 @@
     <main class="main-content">
 
       <!-- ================= SECTION TABLEAU DE BORD ================= -->
-      <section id="sec-dashboard" class="page-section active">
+      <section id="sec-dashboard" class="page-section scrollable-vertical active">
         
         <!-- 👑 DASHBOARD : ADMIN -->
         <div id="dash-admin" class="card-container role-dash" style="display: none;">
@@ -213,7 +216,7 @@
       </section>
 
       <!-- ================= SECTION CLIENTS (ADMIN) ================= -->
-      <section id="sec-clients" class="page-section">
+      <section id="sec-clients" class="page-section scrollable-vertical">
         <div class="card-container">
           <div class="card-header-stripe"></div>
           <div class="card-body">
@@ -236,7 +239,7 @@
       </section>
 
       <!-- ================= SECTION AGENTS (ADMIN) ================= -->
-      <section id="sec-agents" class="page-section">
+      <section id="sec-agents" class="page-section scrollable-vertical">
         <div class="card-container">
           <div class="card-header-stripe" style="background: #10b981;"></div>
           <div class="card-body">
@@ -269,7 +272,7 @@
       </section>
 
       <!-- ================= SECTION FORFAITS (ADMIN/AGENT) ================= -->
-      <section id="sec-forfaits" class="page-section">
+      <section id="sec-forfaits" class="page-section scrollable-vertical">
         <div class="card-container role-admin-only" id="bloc-creation-forfait">
           <div class="card-header-stripe" style="background: #10b981;"></div>
           <div class="card-body">
@@ -302,7 +305,7 @@
       </section>
 
       <!-- ================= SECTION FACTURES (ADMIN/AGENT) ================= -->
-      <section id="sec-factures" class="page-section">
+      <section id="sec-factures" class="page-section scrollable-vertical">
         <div class="card-container role-admin-only">
           <div class="card-header-stripe" style="background: #f59e0b;"></div>
           <div class="card-body" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
@@ -331,7 +334,7 @@
       </section>
 
       <!-- ================= SECTION MON FORFAIT (CLIENT) ================= -->
-      <section id="sec-mon-forfait" class="page-section">
+      <section id="sec-mon-forfait" class="page-section scrollable-vertical">
         <div class="card-container">
           <div class="card-header-stripe"></div>
           <div class="card-body">
@@ -348,7 +351,7 @@
       </section>
 
       <!-- ================= SECTION MES FACTURES (CLIENT) ================= -->
-      <section id="sec-mes-factures" class="page-section">
+      <section id="sec-mes-factures" class="page-section scrollable-vertical">
         <div class="card-container">
           <div class="card-header-stripe"></div>
           <div class="card-body">
@@ -364,7 +367,7 @@
       </section>
 
       <!-- ================= SECTION MON PROFIL (CLIENT) ================= -->
-      <section id="sec-mon-profil" class="page-section">
+      <section id="sec-mon-profil" class="page-section scrollable-vertical">
         <div class="card-container">
           <div class="card-header-stripe"></div>
           <div class="card-body">
@@ -565,13 +568,13 @@
 
       <!-- Contrôles d'Appel -->
       <div style="display: flex; gap: 1rem; justify-content: center; align-items: center;">
-        <button id="btn-couper-mic" class="btn" style="background: #334155; color: white; width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 1.1rem;" title="Microphone">
+        <button id="btn-couper-mic" class="btn-controle-appel" title="Microphone">
           <i class="fa-solid fa-microphone"></i>
         </button>
-        <button id="btn-couper-cam" class="btn" style="background: #334155; color: white; width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 1.1rem;" title="Caméra">
+        <button id="btn-couper-cam" class="btn-controle-appel" title="Caméra">
           <i class="fa-solid fa-video"></i>
         </button>
-        <button id="btn-partage-ecran" class="btn" style="background: #334155; color: white; width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 1.1rem;" title="Partager l'écran">
+        <button id="btn-partage-ecran" class="btn-controle-appel" title="Partager l'écran">
           <i class="fa-solid fa-display"></i>
         </button>
         <button id="btn-raccrocher" class="btn" style="background: #ef4444; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" title="Terminer l'appel">
@@ -824,15 +827,20 @@
     }
 
     // LISTE DES AGENTS/ADMINS (ADMIN)
+    let jetonAgents = 0;
     async function chargerAgents() {
       const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
       const tbody = document.getElementById('agentsTableBody');
       if (!tbody) return;
 
+      const monJeton = ++jetonAgents;
+
       try {
         const res = await fetch('/api/utilisateurs', { headers: { Authorization: `Bearer ${jwtToken}` } });
+        if (monJeton !== jetonAgents) return;
         if (!res.ok) throw new Error('Erreur serveur');
         const { data } = await res.json();
+        if (monJeton !== jetonAgents) return;
 
         if (!data || data.length === 0) {
           tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1rem;">Aucun compte agent/admin.</td></tr>';
@@ -869,6 +877,7 @@
         });
       } catch (err) {
         console.error('Erreur chargement agents:', err);
+        if (monJeton !== jetonAgents) return;
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ef4444; padding:1rem;">Erreur de chargement.</td></tr>';
       }
     }
@@ -950,16 +959,25 @@
     }
 
     // CATALOGUE DES FORFAITS (ADMIN/AGENT)
+    let jetonForfaits = 0; // ignore une réponse réseau arrivée après une plus récente
     async function chargerForfaits() {
       const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
       const tbody = document.getElementById('forfaitsTableBody');
+      console.log('[chargerForfaits] appelée. tbody trouvé ?', !!tbody);
       if (!tbody) return;
+
+      const monJeton = ++jetonForfaits;
 
       try {
         const res = await fetch('/api/forfaits');
+        console.log('[chargerForfaits] statut HTTP :', res.status);
+        if (monJeton !== jetonForfaits) { console.log('[chargerForfaits] réponse abandonnée (requête plus récente en cours)'); return; }
         if (!res.ok) throw new Error('Erreur serveur');
         const reponse = await res.json();
+        console.log('[chargerForfaits] réponse JSON reçue :', reponse);
+        if (monJeton !== jetonForfaits) return;
         const forfaits = Array.isArray(reponse) ? reponse : (reponse.data || []);
+        console.log('[chargerForfaits] nombre de forfaits à afficher :', forfaits.length);
 
         if (forfaits.length === 0) {
           tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1rem;">Aucun forfait.</td></tr>';
@@ -977,6 +995,7 @@
             <td>${estAdmin ? `<button class="btn-danger btn-supprimer-forfait" data-id="${f.id}" style="padding:0.35rem 0.75rem; font-size:0.8rem;">Supprimer</button>` : ''}</td>
           </tr>
         `).join('');
+        console.log('[chargerForfaits] tbody rempli, lignes visibles maintenant :', tbody.querySelectorAll('tr').length);
 
         tbody.querySelectorAll('.btn-supprimer-forfait').forEach(btn => {
           btn.addEventListener('click', async () => {
@@ -998,20 +1017,26 @@
         });
       } catch (err) {
         console.error('Erreur chargement forfaits:', err);
+        if (monJeton !== jetonForfaits) return;
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ef4444; padding:1rem;">Erreur de chargement.</td></tr>';
       }
     }
 
     // FACTURES (ADMIN/AGENT)
+    let jetonFactures = 0;
     async function chargerFactures() {
       const jwtToken = sessionStorage.getItem('token') || localStorage.getItem('token');
       const tbody = document.getElementById('facturesTableBody');
       if (!tbody) return;
 
+      const monJeton = ++jetonFactures;
+
       try {
         const res = await fetch('/api/factures', { headers: { Authorization: `Bearer ${jwtToken}` } });
+        if (monJeton !== jetonFactures) return;
         if (!res.ok) throw new Error('Erreur serveur');
         const { data } = await res.json();
+        if (monJeton !== jetonFactures) return;
 
         if (!data || data.length === 0) {
           tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1rem;">Aucune facture.</td></tr>';
@@ -1049,6 +1074,7 @@
         });
       } catch (err) {
         console.error('Erreur chargement factures:', err);
+        if (monJeton !== jetonFactures) return;
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ef4444; padding:1rem;">Erreur de chargement.</td></tr>';
       }
     }

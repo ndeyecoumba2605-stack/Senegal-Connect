@@ -83,9 +83,21 @@ async function obtenirDetail(req, res, next) {
       [clientId]
     );
 
+    const nbTickets = await query(
+      `SELECT COUNT(*) FROM tickets WHERE client_id = $1`,
+      [clientId]
+    );
+
+    const facture = derniereFacture.rows[0] || null;
+
     res.json({
       ...client.rows[0],
-      derniere_facture: derniereFacture.rows[0]?.montant_fcfa || null,
+      // Le frontend attend un montant (nombre), pas l'objet facture complet
+      // (sinon ça affiche littéralement "[object Object] FCFA").
+      derniere_facture: facture ? facture.montant_fcfa : null,
+      derniere_facture_reference: facture ? facture.reference : null,
+      facture_impayee: facture ? ['impayee', 'en_retard'].includes(facture.statut) : false,
+      nb_tickets: parseInt(nbTickets.rows[0].count, 10),
       ticket_en_cours: ticketEnCours.rows[0] || null,
     });
   } catch (err) {

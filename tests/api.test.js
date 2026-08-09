@@ -82,10 +82,14 @@ describe('Clients', () => {
   });
 
   test('Détail client existant', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ id: 1, forfait_id: 1 }] });
-    db.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
-    db.query.mockResolvedValueOnce({ rows: [] });
-    db.query.mockResolvedValueOnce({ rows: [] });
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 1, utilisateur_id: 1, msisdn: '+221771234567', statut: 'actif',
+              nom: 'Diop', prenom: 'Awa', email: 'awa@test.sn', forfait_nom: 'Standard' }],
+    });
+    db.query.mockResolvedValueOnce({ rows: [] });               // pas de facture
+    db.query.mockResolvedValueOnce({ rows: [] });               // pas de ticket en cours
+    db.query.mockResolvedValueOnce({ rows: [{ count: '0' }] }); // nb_tickets
+
     const reponse = await request(app).get('/api/clients/1').set('Authorization', `Bearer ${tokenAdmin}`);
     expect(reponse.status).toBe(200);
   });

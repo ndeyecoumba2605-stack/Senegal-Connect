@@ -30,10 +30,20 @@ router.get('/', verifierJWT, async (req, res, next) => {
     const { statut, client_id, agent_id, page, limite } = req.query;
 
     // Si l'utilisateur est un simple client, on le restreint à ses propres tickets
-    const targetClientId = req.user.role === 'client' ? req.user.id : client_id;
+    let targetClientId = client_id;
+    if (req.user.role === 'client') {
+      const clientRes = await db.query('SELECT id FROM clients WHERE utilisateur_id = $1', [req.user.id]);
+      targetClientId = clientRes.rows[0]?.id ?? -1; // -1 garantit une liste vide plutôt qu'une erreur si pas de fiche client
+    }
+
+    // Exclusivité : un agent ne voit dans la file que les tickets non
+    // assignés + les siens, jamais ceux pris en charge par un collègue.
+    // L'admin (restreindreAgentId = undefined) voit tout, avec le nom de
+    // l'agent assigné et du client, pour supervision.
+    const restreindreAgentId = req.user.role === 'agent' ? req.user.id : undefined;
 
     const resultat = await ticketsController.listerTickets({
-      statut, clientId: targetClientId, agentId: agent_id, page, limite,
+      statut, clientId: targetClientId, agentId: agent_id, page, limite, restreindreAgentId,
     });
     res.json(resultat);
   } catch (err) { next(err); }

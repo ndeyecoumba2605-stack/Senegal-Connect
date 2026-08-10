@@ -7,6 +7,8 @@ let connexionMedia = null;
 let streamLocal = null;
 let appelEnCours = null;
 let chronoInterval = null;
+let partageEcranActif = false;
+let streamPartageEcran = null;
 
 // 1. INITIALISATION DE PEERJS
 function initPeer() {
@@ -79,14 +81,24 @@ function ouvrirInterfaceAppel(type = 'video') {
   }
 
   // Adaptation de la modale en fonction du type d'appel (Audio vs Vidéo)
+  const btnPartage = document.getElementById('btn-partage-ecran');
+  const btnArreter = document.getElementById('btn-arreter-partage');
+  const btnReaction = document.getElementById('btn-reaction-appel');
+
   if (type === 'video') {
     if (containerVideo) containerVideo.style.display = 'flex';
     if (interfaceAudio) interfaceAudio.style.display = 'none';
     if (btnCam) btnCam.style.display = 'inline-flex';
+    if (btnPartage) btnPartage.style.display = 'inline-flex';
+    if (btnReaction) btnReaction.style.display = 'inline-flex';
+    if (btnArreter) btnArreter.style.display = 'none';
   } else {
     if (containerVideo) containerVideo.style.display = 'none';
     if (interfaceAudio) interfaceAudio.style.display = 'flex';
     if (btnCam) btnCam.style.display = 'none';
+    if (btnPartage) btnPartage.style.display = 'none';
+    if (btnArreter) btnArreter.style.display = 'none';
+    if (btnReaction) btnReaction.style.display = 'inline-flex';
   }
 }
 
@@ -107,11 +119,19 @@ function fermerInterfaceAppel() {
     streamLocal.getTracks().forEach((track) => track.stop());
     streamLocal = null;
   }
+
+  if (streamPartageEcran) {
+    streamPartageEcran.getTracks().forEach((track) => track.stop());
+    streamPartageEcran = null;
+  }
   
   if (connexionMedia) {
     connexionMedia.close();
     connexionMedia = null;
   }
+
+  const btnArreter = document.getElementById('btn-arreter-partage');
+  if (btnArreter) btnArreter.classList.add('cache');
 
   appelEnCours = null;
 }
@@ -138,6 +158,13 @@ async function demarrerAppel(ticketId, type = 'video') {
   try {
     await obtenirFluxMedia(type);
     ouvrirInterfaceAppel(type);
+
+    appelEnCours = {
+      ticketId,
+      type,
+      autrePartieId: idAutrePartieDuTicket(),
+      dureeSecondes: 0,
+    };
 
     const destinataireId = idAutrePartieDuTicket();
     socket.emit('appel:initier', { ticketId, destinataireId, type, peerId: window.monPeerId });
@@ -216,6 +243,7 @@ window.gererAppelRefuse = function () {
 
 window.gererAppelTermine = function () {
   fermerInterfaceAppel();
+  appelEnCours = null;
 };
 
 window.terminerAppel = function() {
@@ -224,6 +252,7 @@ window.terminerAppel = function() {
       appelId: appelEnCours.appelId,
       dureeSecondes: appelEnCours.dureeSecondes || 0,
       autrePartieId: appelEnCours.autrePartieId,
+      ticketId: appelEnCours.ticketId,
     });
   }
   fermerInterfaceAppel();
@@ -262,39 +291,68 @@ document.addEventListener('click', (e) => {
     }
   }
 
-  // Partage d'écran
   const btnPartage = e.target.closest('#btn-partage-ecran');
+  const btnArreterPartage = e.target.closest('#btn-arreter-partage');
+  const btnReaction = e.target.closest('#btn-reaction-appel');
+
   if (btnPartage) {
+    if (!connexionMedia) return;
+    const indicateur = document.getElementById('indicateur-partage-ecran');
+    const btnArreter = document.getElementById('btn-arreter-partage');
     (async () => {
-      if (!connexionMedia) return;
-      const indicateur = document.getElementById('indicateur-partage-ecran');
       try {
         const streamEcran = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 } });
         const pisteEcran = streamEcran.getVideoTracks()[0];
+        streamPartageEcran = streamEcran;
 
         const sender = connexionMedia.peerConnection.getSenders().find((s) => s.track && s.track.kind === 'video');
         if (sender) {
           await sender.replaceTrack(pisteEcran);
+          partageEcranActif = true;
           btnPartage.style.background = '#22c55e';
+          if (btnArreter) btnArreter.classList.remove('cache');
           if (indicateur) indicateur.classList.remove('cache');
           if (typeof socket !== 'undefined') {
             socket.emit('appel:controle', { ticketId: window.ticketActifId, partageEcran: true });
           }
 
-          pisteEcran.onended = async () => {
-            const streamCamera = await navigator.mediaDevices.getUserMedia({ video: true });
-            await sender.replaceTrack(streamCamera.getVideoTracks()[0]);
-            btnPartage.style.background = '#334155';
-            if (indicateur) indicateur.classList.add('cache');
-            if (typeof socket !== 'undefined') {
-              socket.emit('appel:controle', { ticketId: window.ticketActifId, partageEcran: false });
-            }
+          pisteEcran.onended = () => {
+            arreterPartageEcran(sender, btnPartage, btnArreter, indicateur);
           };
         }
       } catch (err) {
-        console.warn("[WebRTC] Partage d'écran annulé ou refusé.");
+        console.warn('[WebRTC] Partage d\'écran annulé ou refusé.', err);
       }
     })();
+  }
+
+  if (btnArreterPartage) {
+    if (!connexionMedia) return;
+    const indicateur = document.getElementById('indicateur-partage-ecran');
+    const btnPartageEl = document.getElementById('btn-partage-ecran');
+    const sender = connexionMedia.peerConnection.getSenders().find((s) => s.track && s.track.kind === 'video');
+    if (sender) {
+      arreterPartageEcran(sender, btnPartageEl, btnArreterPartage, indicateur);
+    }
+  }
+
+  if (btnReaction) {
+    const zoneReactions = document.getElementById('appel-reactions');
+    if (zoneReactions) {
+      zoneReactions.classList.toggle('cache');
+    }
+  }
+
+  if (e.target.closest('.reaction-emoji')) {
+    const emoji = e.target.closest('.reaction-emoji').dataset.emoji;
+    if (emoji && appelEnCours && socket) {
+      socket.emit('appel:reaction', {
+        appelId: appelEnCours.appelId,
+        emoji,
+        autrePartieId: appelEnCours.autrePartieId,
+      });
+      afficherReactionLocale(emoji);
+    }
   }
 
   // Raccrocher
@@ -324,3 +382,54 @@ window.gererControleDistant = function ({ micro, video, partageEcran }) {
   if (partageEcran === true) icones.push('<span style="background:#22c55e;color:#fff;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.8rem;"><i class="fa-solid fa-display"></i> Écran partagé</span>');
   badge.innerHTML = icones.join('');
 };
+
+window.gererAppelReaction = function ({ emoji, de }) {
+  const reactionDisplay = document.getElementById('appel-reaction-display');
+  if (!reactionDisplay) return;
+  reactionDisplay.classList.remove('cache');
+  reactionDisplay.textContent = `${de?.nom || 'Votre correspondant'} a envoyé ${emoji}`;
+  setTimeout(() => {
+    reactionDisplay.classList.add('cache');
+  }, 4000);
+};
+
+function afficherReactionLocale(emoji) {
+  const reactionDisplay = document.getElementById('appel-reaction-display');
+  if (!reactionDisplay) return;
+  reactionDisplay.classList.remove('cache');
+  reactionDisplay.textContent = `Vous avez envoyé ${emoji}`;
+  setTimeout(() => {
+    reactionDisplay.classList.add('cache');
+  }, 2500);
+}
+
+async function arreterPartageEcran(sender, btnPartageEl, btnArreterEl, indicateur) {
+  if (streamPartageEcran) {
+    streamPartageEcran.getTracks().forEach((track) => track.stop());
+    streamPartageEcran = null;
+  }
+
+  if (!connexionMedia) return;
+  if (sender) {
+    try {
+      const streamCamera = await navigator.mediaDevices.getUserMedia({ video: true });
+      const pisteCamera = streamCamera.getVideoTracks()[0];
+      await sender.replaceTrack(pisteCamera);
+      if (streamLocal) {
+        streamLocal.getTracks().forEach((track) => track.stop());
+      }
+      streamLocal = streamCamera;
+      afficherVideoLocale(streamLocal);
+    } catch (err) {
+      console.warn('[WebRTC] Impossible de restaurer la caméra après arrêt du partage.', err);
+    }
+  }
+
+  partageEcranActif = false;
+  if (btnPartageEl) btnPartageEl.style.background = '#334155';
+  if (btnArreterEl) btnArreterEl.classList.add('cache');
+  if (indicateur) indicateur.classList.add('cache');
+  if (typeof socket !== 'undefined') {
+    socket.emit('appel:controle', { ticketId: window.ticketActifId, partageEcran: false });
+  }
+}

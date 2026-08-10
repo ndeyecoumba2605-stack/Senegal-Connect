@@ -12,15 +12,9 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20,
     conditions.push(`c.id = $${valeurs.length}`); 
   }
 
-  // Exclusivité : un agent ne doit voir dans la file QUE les tickets non
-  // assignés (qu'il peut prendre) et ceux qui lui sont déjà assignés — jamais
-  // les tickets pris en charge par un collègue. (Un admin passe
-  // restreindreAgentId = undefined et voit tout.)
-  if (restreindreAgentId) {
-    valeurs.push(restreindreAgentId);
-    conditions.push(`(t.agent_id IS NULL OR t.agent_id = $${valeurs.length})`);
-  }
-
+  // L'agent peut voir tous les tickets dans la file. L'accès exact reste
+  // contrôlé par l'API lorsqu'il tente d'ouvrir un ticket déjà pris par un
+  // collègue.
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const offset = (page - 1) * limite;
 

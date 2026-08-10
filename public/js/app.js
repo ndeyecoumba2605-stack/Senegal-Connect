@@ -121,11 +121,14 @@ function connecterSocket() {
     const user = utilisateur();
     const index = tousLesTickets.findIndex(t => String(t.id) === String(id));
 
-    if (user?.role === 'agent' && String(agent_id) !== String(user.id)) {
-      if (index !== -1) tousLesTickets.splice(index, 1);
-    } else if (index !== -1) {
-      tousLesTickets[index] = { ...tousLesTickets[index], agent_id, statut: 'en_cours' };
+    if (index !== -1) {
+      tousLesTickets[index] = {
+        ...tousLesTickets[index],
+        agent_id,
+        statut: 'en_cours',
+      };
     }
+
     afficherTicketsFiltres();
 
     if (String(id) === String(ticketActifId)) {
@@ -142,8 +145,7 @@ function connecterSocket() {
   });
 
   socket.on('message:statut', ({ messageId, statut }) => {
-    const bulle = document.querySelector(`[data-message-id="${messageId}"] .accuse`);
-    if (bulle) bulle.textContent = statut === 'lu' ? '✓✓' : '✓';
+    mettreAJourStatutMessage(messageId, statut);
   });
 
   socket.on('frappe', ({ nom }) => afficherIndicateurFrappe(nom));
@@ -156,6 +158,7 @@ function connecterSocket() {
   socket.on('appel:accepte', (donnees) => window.gererAppelAccepte && window.gererAppelAccepte(donnees));
   socket.on('appel:refuse', () => window.gererAppelRefuse && window.gererAppelRefuse());
   socket.on('appel:termine', () => window.gererAppelTermine && window.gererAppelTermine());
+  socket.on('appel:reaction', (donnees) => window.gererAppelReaction && window.gererAppelReaction(donnees));
 }
 
 // =========================================================================
@@ -175,8 +178,18 @@ function initialiserInterfaceParRole() {
 
   if (role === 'client') {
     document.querySelectorAll('.role-admin-only, .role-admin-agent').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.role-client-only').forEach(el => el.style.display = 'inline-flex');
   } else if (role === 'agent') {
-    document.querySelectorAll('.role-admin-only').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.role-admin-only, .role-client-only').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.role-admin-agent').forEach(el => el.style.display = 'inline-flex');
+  } else if (role === 'admin') {
+    document.querySelectorAll('.role-client-only').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.role-admin-only, .role-admin-agent').forEach(el => el.style.display = 'inline-flex');
+  }
+
+  const boutonNouveauTicket = document.getElementById('btn-nouveau-ticket');
+  if (boutonNouveauTicket) {
+    boutonNouveauTicket.style.display = role === 'client' ? 'inline-flex' : 'none';
   }
 
   document.querySelectorAll('.role-dash').forEach(dash => dash.style.display = 'none');
@@ -202,8 +215,8 @@ async function chargerStatsParRole() {
       const res = await fetch('/api/stats', { headers: { Authorization: `Bearer ${token()}` } });
       if (res.ok) {
         const data = await res.json();
-        if (document.getElementById('statAdminClients')) document.getElementById('statAdminClients').textContent = data.total_clients || 0;
-        if (document.getElementById('statAdminMRR')) document.getElementById('statAdminMRR').textContent = `${(data.mrr || 0).toLocaleString()} FCFA`;
+        if (document.getElementById('statAdminClients')) document.getElementById('statAdminClients').textContent = data.clients_actifs || 0;
+        if (document.getElementById('statAdminMRR')) document.getElementById('statAdminMRR').textContent = `${(data.revenu_mensuel_fcfa || 0).toLocaleString()} FCFA`;
         if (document.getElementById('statAdminFactures')) document.getElementById('statAdminFactures').textContent = data.factures_impayees || 0;
         if (document.getElementById('statAdminTickets')) document.getElementById('statAdminTickets').textContent = data.tickets_ouverts || 0;
       }
@@ -307,16 +320,38 @@ function ajouterTicketDansListe(ticket) {
   li.dataset.statut = ticket.statut;
   li.className = 'item-ticket';
 
+  const user = utilisateur();
+  const estTicketAssigné = ticket.agent_id;
+  const estPrisParMoi = estTicketAssigné && String(ticket.agent_id) === String(user?.id);
+  const estPrisParAutre = estTicketAssigné && !estPrisParMoi;
+
+  if (estPrisParAutre && user?.role === 'agent') {
+    li.classList.add('ticket-pris-autre');
+  }
   if (String(ticket.id) === String(ticketActifId)) {
     li.classList.add('active');
   }
 
+  const nomAgent = ticket.agent_nom ? ` ${ticket.agent_prenom || ''} ${ticket.agent_nom}`.trim() : '';
+  const attribution = estTicketAssigné
+    ? `<div class="ticket-agent-info">Pris en charge par${estPrisParMoi ? ' vous' : nomAgent || ' un agent'}</div>`
+    : '';
+
   li.innerHTML = `
-    <strong>#${ticket.id}</strong> ${ticket.sujet} 
-    <span class="badge-statut ${ticket.statut}">${ticket.statut}</span>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem;">
+      <strong>#${ticket.id}</strong>
+      <span class="badge-statut ${ticket.statut}">${ticket.statut}</span>
+    </div>
+    <div style="margin-top:0.25rem; color:#475569; font-size:0.9rem;">${ticket.sujet}</div>
+    ${attribution}
   `;
 
   li.addEventListener('click', () => {
+    if (estPrisParAutre && user?.role === 'agent') {
+      alert('Ce ticket est déjà pris en charge par un autre agent et n\'est pas accessible.');
+      return;
+    }
+
     document.querySelectorAll('#liste-tickets .item-ticket').forEach(el => el.classList.remove('active'));
     li.classList.add('active');
     ouvrirTicket(ticket);
@@ -363,7 +398,76 @@ function initialiserFiltreTickets() {
   }
 }
 
+function initialiserCreationTicket() {
+  const boutonNouveau = document.getElementById('btn-nouveau-ticket');
+  const modalTicket = document.getElementById('modale-nouveau-ticket');
+  const formTicket = document.getElementById('form-creer-ticket');
+  const btnFermerTicket = document.getElementById('btn-fermer-modale-ticket');
+  const inputSujet = document.getElementById('ticket-sujet');
+  const inputDescription = document.getElementById('ticket-description');
+
+  if (boutonNouveau && modalTicket) {
+    boutonNouveau.addEventListener('click', () => {
+      modalTicket.classList.remove('cache');
+    });
+  }
+
+  if (btnFermerTicket && modalTicket) {
+    btnFermerTicket.addEventListener('click', () => {
+      modalTicket.classList.add('cache');
+    });
+  }
+
+  if (formTicket) {
+    formTicket.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!inputSujet || !inputDescription) return;
+
+      const sujet = inputSujet.value.trim();
+      const description = inputDescription.value.trim();
+      if (!sujet) {
+        alert('Le sujet du ticket est requis.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/tickets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token()}`,
+          },
+          body: JSON.stringify({ sujet, description }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.message || 'Impossible de créer le ticket.');
+          return;
+        }
+
+        if (modalTicket) modalTicket.classList.add('cache');
+        inputSujet.value = '';
+        inputDescription.value = '';
+
+        await chargerTickets();
+        if (data && data.id) {
+          ouvrirTicket(data);
+        }
+      } catch (err) {
+        console.error('Erreur création du ticket :', err);
+        alert('Erreur lors de la création du ticket.');
+      }
+    });
+  }
+}
+
 async function ouvrirTicket(ticket) {
+  const user = utilisateur();
+  if (user?.role === 'agent' && ticket.agent_id && String(ticket.agent_id) !== String(user.id)) {
+    alert('Ce ticket est pris en charge par un autre agent et vous ne pouvez pas y accéder.');
+    return;
+  }
+
   ticketActifId = ticket.id;
   window.ticketActifId = ticket.id;
   ticketActifDonnees = ticket;
@@ -395,8 +499,7 @@ async function ouvrirTicket(ticket) {
     socket.emit('ticket:rejoindre', { ticketId: ticket.id });
   }
 
-  const user = utilisateur();
-  if (user?.role === 'client') {
+  if (utilisateur()?.role === 'client') {
     // Pour un client, l'autre partie de l'appel est l'agent assigné au ticket
     // (agent_id référence directement utilisateurs.id).
     window.ticketActifAutrePartieId = ticket.agent_id || null;
@@ -418,7 +521,21 @@ async function ouvrirTicket(ticket) {
       return;
     }
     const { data } = await reponse.json();
-    if (Array.isArray(data)) data.forEach(afficherMessage);
+    if (Array.isArray(data)) {
+      data.forEach(afficherMessage);
+      const userActuel = utilisateur();
+      if (socket && socket.connected && userActuel) {
+        data
+          .filter(msg => String(msg.expediteur_id) !== String(userActuel.id) && msg.id)
+          .forEach((msg) => {
+            socket.emit('message:lu', {
+              messageId: msg.id,
+              expediteurId: msg.expediteur_id,
+              ticketId: ticket.id,
+            });
+          });
+      }
+    }
   } catch (e) {
     console.error('Erreur chargement messages:', e);
   }
@@ -575,7 +692,8 @@ function afficherMessage(message) {
     contenuHtml = `<a href="${message.fichier_url || message.contenu}" target="_blank" style="color: inherit; text-decoration: underline;">📄 ${message.fichier_nom || 'Télécharger le document'}</a>`;
   }
 
-  div.innerHTML = `${contenuHtml}<span class="accuse" style="font-size: 0.65rem; opacity: 0.8; float: right; margin-left: 8px; margin-top: 4px;">✓</span>`;
+  const statutTexte = estMoi ? '✓' : '';
+  div.innerHTML = `${contenuHtml}${statutTexte ? `<span class="accuse" data-lu="false" style="font-size: 0.65rem; opacity: 0.8; float: right; margin-left: 8px; margin-top: 4px;">${statutTexte}</span>` : ''}`;
 
   fil.appendChild(div);
   fil.scrollTop = fil.scrollHeight;
@@ -583,8 +701,30 @@ function afficherMessage(message) {
 
 function accuserReceptionSiVisible(message) {
   const userActuel = utilisateur();
-  if (userActuel && String(message.expediteur_id) !== String(userActuel.id) && socket) {
-    socket.emit('message:lu', { messageId: message.id, expediteurId: message.expediteur_id, ticketId: message.ticket_id });
+  const expediteurId = message.expediteur_id || message.sender_id;
+  if (userActuel && expediteurId && String(expediteurId) !== String(userActuel.id) && socket) {
+    socket.emit('message:lu', { messageId: message.id, expediteurId, ticketId: message.ticket_id });
+  }
+}
+
+function mettreAJourStatutMessage(messageId, statut) {
+  const bulle = document.querySelector(`[data-message-id="${messageId}"]`);
+  if (!bulle) return;
+
+  let accuse = bulle.querySelector('.accuse');
+  if (!accuse) {
+    accuse = document.createElement('span');
+    accuse.className = 'accuse';
+    accuse.style.cssText = 'font-size: 0.65rem; opacity: 0.8; float: right; margin-left: 8px; margin-top: 4px;';
+    bulle.appendChild(accuse);
+  }
+
+  if (statut === 'lu') {
+    accuse.textContent = '✓✓';
+    accuse.dataset.lu = 'true';
+  } else {
+    accuse.textContent = '✓';
+    accuse.dataset.lu = 'false';
   }
 }
 
@@ -763,6 +903,43 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('#btn-raccrocher')) {
     masquerInterfaceAppel();
     if (typeof window.terminerAppel === 'function') window.terminerAppel();
+  }
+
+  if (e.target.closest('#btn-fermer-ticket')) {
+    if (!ticketActifId) {
+      return alert('Veuillez sélectionner un ticket avant de le fermer.');
+    }
+    (async () => {
+      try {
+        const res = await fetch(`/api/tickets/${ticketActifId}/statut`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token()}`,
+          },
+          body: JSON.stringify({ statut: 'ferme' }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          return alert(data.message || 'Impossible de fermer le ticket.');
+        }
+
+        ticketActifDonnees = data;
+        rafraichirTicket(data);
+        mettreAJourEtatPriseEnCharge(data);
+
+        const statutEl = document.getElementById('statut-ticket');
+        if (statutEl) {
+          statutEl.textContent = data.statut;
+          statutEl.className = `badge-statut ${data.statut}`;
+        }
+
+        alert('Le ticket a été fermé avec succès.');
+      } catch (err) {
+        console.error('Erreur fermeture du ticket :', err);
+        alert('Erreur lors de la fermeture du ticket.');
+      }
+    })();
   }
 
   if (e.target.closest('#btn-retour-liste-mobile')) {

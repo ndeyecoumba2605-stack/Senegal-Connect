@@ -38,11 +38,26 @@ module.exports = function initAppels(io) {
       io.to(`user:${initiateurId}`).emit('appel:refuse', { appelId });
     });
 
-    socket.on('appel:terminer', async ({ appelId, dureeSecondes, autrePartieId }) => {
+    socket.on('appel:reaction', ({ appelId, emoji, autrePartieId }) => {
+      if (autrePartieId) {
+        io.to(`user:${autrePartieId}`).emit('appel:reaction', {
+          appelId,
+          emoji,
+          de: { id: user.id, nom: user.nom },
+        });
+      }
+    });
+
+    socket.on('appel:terminer', async ({ appelId, dureeSecondes, autrePartieId, ticketId }) => {
       await db.query(
         `UPDATE appels SET statut = 'termine', duree_secondes = $1, fin_le = NOW() WHERE id = $2`,
         [dureeSecondes, appelId]
       );
+
+      if (ticketId) {
+        io.to(`ticket:${ticketId}`).emit('appel:termine', { appelId, dureeSecondes });
+      }
+
       if (autrePartieId) {
         io.to(`user:${autrePartieId}`).emit('appel:termine', { appelId, dureeSecondes });
       }

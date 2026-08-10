@@ -556,6 +556,8 @@ body {
 }
 
 .bulle-message {
+  display: inline-flex;
+  flex-direction: column;
   max-width: 70%;
   padding: 0.65rem 0.9rem;
   border-radius: 8px;
@@ -577,6 +579,23 @@ body {
   background-color: #e2e8f0;
   color: var(--text-dark);
   border-bottom-left-radius: 2px;
+}
+
+.ticket-pris-autre {
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.ticket-pris-autre .badge-statut {
+  background: #f97316;
+  color: white;
+}
+
+.ticket-agent-info {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: #334155;
 }
 
 .indicateur-frappe {

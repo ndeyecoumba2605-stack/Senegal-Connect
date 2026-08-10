@@ -567,7 +567,7 @@
       </div>
 
       <!-- Contrôles d'Appel -->
-      <div style="display: flex; gap: 1rem; justify-content: center; align-items: center;">
+      <div style="display: flex; gap: 1rem; justify-content: center; align-items: center; flex-wrap: wrap;">
         <button id="btn-couper-mic" class="btn-controle-appel" title="Microphone">
           <i class="fa-solid fa-microphone"></i>
         </button>
@@ -577,10 +577,24 @@
         <button id="btn-partage-ecran" class="btn-controle-appel" title="Partager l'écran">
           <i class="fa-solid fa-display"></i>
         </button>
+        <button id="btn-arreter-partage" class="btn-controle-appel cache" title="Arrêter le partage d'écran">
+          <i class="fa-solid fa-stop"></i>
+        </button>
+        <button id="btn-reaction-appel" class="btn-controle-appel" title="Envoyer une réaction">
+          <i class="fa-solid fa-face-smile"></i>
+        </button>
         <button id="btn-raccrocher" class="btn" style="background: #ef4444; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" title="Terminer l'appel">
           <i class="fa-solid fa-phone-slash"></i> Raccrocher
         </button>
       </div>
+      <div id="appel-reactions" class="cache" style="margin-top:1rem; display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+        <button type="button" class="btn-controle-appel reaction-emoji" data-emoji="👍">👍</button>
+        <button type="button" class="btn-controle-appel reaction-emoji" data-emoji="😂">😂</button>
+        <button type="button" class="btn-controle-appel reaction-emoji" data-emoji="❤️">❤️</button>
+        <button type="button" class="btn-controle-appel reaction-emoji" data-emoji="😮">😮</button>
+        <button type="button" class="btn-controle-appel reaction-emoji" data-emoji="🎉">🎉</button>
+      </div>
+      <div id="appel-reaction-display" class="cache" style="margin-top:1rem; color:#f8fafc; font-size:0.95rem; min-height:1.3rem;"></div>
 
       <p id="indicateur-partage-ecran" class="cache" style="margin-top: 1rem; color: #22c55e; font-size: 0.85rem;">
         <i class="fa-solid fa-display"></i> Partage d'écran actif

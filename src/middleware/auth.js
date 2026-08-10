@@ -9,6 +9,9 @@ function verifierJWT(req, res, next) {
 
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
+    if (req.user && req.user.role) {
+      req.user.role = String(req.user.role).toLowerCase();
+    }
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {

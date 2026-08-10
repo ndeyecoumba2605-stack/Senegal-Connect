@@ -36,14 +36,11 @@ router.get('/', verifierJWT, async (req, res, next) => {
       targetClientId = clientRes.rows[0]?.id ?? -1; // -1 garantit une liste vide plutôt qu'une erreur si pas de fiche client
     }
 
-    // Exclusivité : un agent ne voit dans la file que les tickets non
-    // assignés + les siens, jamais ceux pris en charge par un collègue.
-    // L'admin (restreindreAgentId = undefined) voit tout, avec le nom de
-    // l'agent assigné et du client, pour supervision.
-    const restreindreAgentId = req.user.role === 'agent' ? req.user.id : undefined;
-
+    // Un agent voit désormais tous les tickets, y compris ceux déjà pris en
+    // charge par un autre agent. Les tickets pris par un collègue doivent être
+    // clairement marqués et rester inaccessibles pour cet agent.
     const resultat = await ticketsController.listerTickets({
-      statut, clientId: targetClientId, agentId: agent_id, page, limite, restreindreAgentId,
+      statut, clientId: targetClientId, agentId: agent_id, page, limite,
     });
     res.json(resultat);
   } catch (err) { next(err); }

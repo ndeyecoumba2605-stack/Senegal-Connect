@@ -94,7 +94,7 @@ async function connecter(req, res, next) {
     }
 
     const token = jwt.sign(
-      { id: utilisateur.id, nom: utilisateur.nom, email: utilisateur.email, role: utilisateur.role },
+      { id: utilisateur.id, nom: utilisateur.nom, email: utilisateur.email, role: String(utilisateur.role || '').toLowerCase() },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '24h', issuer: 'senegal-connect' }
     );

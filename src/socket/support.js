@@ -14,6 +14,9 @@ module.exports = function initSupport(io) {
   io.use((socket, next) => {
     try {
       socket.data.user = jwt.verify(socket.handshake.auth.token, process.env.JWT_SECRET);
+      if (socket.data.user && socket.data.user.role) {
+        socket.data.user.role = String(socket.data.user.role).toLowerCase();
+      }
       next();
     } catch (err) {
       next(new Error('Token invalide'));
@@ -96,10 +99,11 @@ module.exports = function initSupport(io) {
       const ticket = resultat.rows[0];
       if (!ticket) return socket.emit('erreur', { message: 'Ticket introuvable' });
 
-      let autorise = user.role === 'admin';
-      if (user.role === 'agent') {
+      const role = String(user.role || '').toLowerCase();
+      let autorise = role === 'admin';
+      if (role === 'agent') {
         autorise = !ticket.agent_id || ticket.agent_id === user.id;
-      } else if (user.role === 'client') {
+      } else if (role === 'client') {
         const clientRes = await db.query(`SELECT id FROM clients WHERE utilisateur_id = $1`, [user.id]);
         autorise = clientRes.rows[0]?.id === ticket.client_id;
       }

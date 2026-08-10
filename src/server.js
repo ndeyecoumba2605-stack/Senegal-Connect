@@ -8,7 +8,7 @@ const { ExpressPeerServer } = require('peer');
 
 const logger = require('./config/logger');
 const { gestionnaire404, gestionnaireErreurs } = require('./middleware/erreurs');
-const swaggerSpec = require('./config/swagger');
+const { swaggerSpec } = require('./config/swagger');
 const swaggerUi = require('swagger-ui-express');
 
 const app = express();

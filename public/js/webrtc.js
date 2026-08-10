@@ -12,8 +12,17 @@ let streamPartageEcran = null;
 
 // 1. INITIALISATION DE PEERJS
 function initPeer() {
-  // Utilise le serveur PeerJS public par défaut
-  peer = new Peer();
+  const host = window.location.hostname || 'localhost';
+  const port = Number(window.location.port) || (window.location.protocol === 'https:' ? 443 : 80);
+  const secure = window.location.protocol === 'https:';
+
+  peer = new Peer(undefined, {
+    host,
+    port,
+    path: '/peerjs',
+    secure,
+    debug: 2,
+  });
 
   peer.on('open', (id) => {
     console.log('[WebRTC] Mon Peer ID est :', id);

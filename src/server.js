@@ -75,11 +75,14 @@ require('./socket/support')(io);
 require('./socket/appels')(io);
 
 // Server PeerJS pour la visio/voix
-const { PeerServer } = require('peer');
-
-let peerServer;
 if (process.env.NODE_ENV !== 'test') {
-  peerServer = PeerServer({ port: 3001, path: '/peerjs' });
+  const peerServer = ExpressPeerServer(server, {
+    debug: process.env.NODE_ENV !== 'production',
+    path: '/peerjs',
+    allow_discovery: false,
+  });
+
+  app.use('/peerjs', peerServer);
 }
 
 // Tâches planifiées : facturation mensuelle automatique + passage en retard

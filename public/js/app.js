@@ -693,7 +693,23 @@ function afficherMessage(message) {
   }
 
   const statutTexte = estMoi ? '✓' : '';
-  div.innerHTML = `${contenuHtml}${statutTexte ? `<span class="accuse" data-lu="false" style="font-size: 0.65rem; opacity: 0.8; float: right; margin-left: 8px; margin-top: 4px;">${statutTexte}</span>` : ''}`;
+  div.innerHTML = `
+    ${contenuHtml}
+    ${statutTexte ? `<span class="accuse" data-lu="false" style="font-size: 0.65rem; opacity: 0.8; float: right; margin-left: 8px; margin-top: 4px;">${statutTexte}</span>` : ''}
+    <div class="reaction-toolbar">
+      <button type="button" class="btn-reaction-message" title="Réagir à ce message">😊</button>
+      <div class="reaction-picker cache">
+        <button type="button" class="reaction-option" data-emoji="👍">👍</button>
+        <button type="button" class="reaction-option" data-emoji="😂">😂</button>
+        <button type="button" class="reaction-option" data-emoji="❤️">❤️</button>
+        <button type="button" class="reaction-option" data-emoji="🎉">🎉</button>
+        <button type="button" class="reaction-option" data-emoji="😮">😮</button>
+        <button type="button" class="reaction-option" data-emoji="😢">😢</button>
+        <button type="button" class="reaction-option" data-emoji="👏">👏</button>
+      </div>
+    </div>
+    <div class="reactions"></div>
+  `;
 
   fil.appendChild(div);
   fil.scrollTop = fil.scrollHeight;
@@ -749,7 +765,60 @@ function mettreAJourReactions(messageId, reactions) {
     zone.className = 'reactions';
     bulle.appendChild(zone);
   }
-  zone.innerHTML = reactions.map(r => `${r.emoji} ${r.count}`).join(' ');
+  zone.innerHTML = reactions
+    .map(r => `<button type="button" class="reaction-chip" data-emoji="${r.emoji}">${r.emoji} ${r.count}</button>`)
+    .join(' ');
+}
+
+function initialiserReactionsMessage() {
+  const fil = document.getElementById('fil-messages');
+  if (!fil) return;
+
+  fil.addEventListener('click', (e) => {
+    const reactionButton = e.target.closest('.btn-reaction-message');
+    if (reactionButton) {
+      const bulle = reactionButton.closest('.bulle-message');
+      if (!bulle) return;
+
+      const picker = bulle.querySelector('.reaction-picker');
+      if (!picker) return;
+
+      document.querySelectorAll('.reaction-picker').forEach((p) => {
+        if (p !== picker) p.classList.add('cache');
+      });
+      picker.classList.toggle('cache');
+      return;
+    }
+
+    const option = e.target.closest('.reaction-option');
+    if (option) {
+      const bulle = option.closest('.bulle-message');
+      const messageId = bulle?.dataset.messageId;
+      const emoji = option.dataset.emoji;
+      if (socket && socket.connected && ticketActifId && messageId && emoji) {
+        socket.emit('reaction:toggle', { messageId, emoji, ticketId: ticketActifId });
+      }
+      bulle?.querySelector('.reaction-picker')?.classList.add('cache');
+      return;
+    }
+
+    const chip = e.target.closest('.reaction-chip');
+    if (chip) {
+      const bulle = chip.closest('.bulle-message');
+      const messageId = bulle?.dataset.messageId;
+      const emoji = chip.dataset.emoji;
+      if (socket && socket.connected && ticketActifId && messageId && emoji) {
+        socket.emit('reaction:toggle', { messageId, emoji, ticketId: ticketActifId });
+      }
+      return;
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.bulle-message')) {
+      document.querySelectorAll('.reaction-picker').forEach((picker) => picker.classList.add('cache'));
+    }
+  });
 }
 
 // Initialisation de la saisie de message, emojis et pièces jointes
@@ -1005,6 +1074,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initialiserFiltreTickets();
     chargerTickets();
     initialiserFormulaireMessage();
+    initialiserReactionsMessage();
 
     if (user.role && user.role.toLowerCase() === 'admin') {
       if (typeof chargerVraisClients === 'function') chargerVraisClients();

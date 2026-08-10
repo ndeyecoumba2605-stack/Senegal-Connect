@@ -27,6 +27,7 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true
   },
+  path: '/socket.io',
   transports: ['polling', 'websocket'] // Permet la négociation propre HTTP -> WS
 });
 
@@ -78,7 +79,7 @@ require('./socket/appels')(io);
 if (process.env.NODE_ENV !== 'test') {
   const peerServer = ExpressPeerServer(server, {
     debug: process.env.NODE_ENV !== 'production',
-    path: '/peerjs',
+    path: '/',
     allow_discovery: false,
   });
 

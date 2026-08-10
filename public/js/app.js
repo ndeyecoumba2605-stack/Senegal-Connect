@@ -80,8 +80,9 @@ function connecterSocket() {
   if (!jwt) return;
 
   socket = io({ 
+    path: '/socket.io',
     auth: { token: jwt },
-    transports: ['polling', 'websocket']
+    transports: ['polling']
   });
 
   socket.on('connect', () => {
@@ -373,6 +374,7 @@ function rafraichirTicket(ticket) {
   if (String(ticket.id) === String(ticketActifId)) {
     ticketActifDonnees = { ...ticketActifDonnees, ...ticket };
     mettreAJourEtatPriseEnCharge(ticketActifDonnees);
+    mettreAJourEtatDiscussion(ticketActifDonnees);
 
     // Si un agent vient d'être assigné, un client peut désormais l'appeler.
     const user = utilisateur();
@@ -506,6 +508,7 @@ async function ouvrirTicket(ticket) {
   }
 
   mettreAJourEtatPriseEnCharge(ticket);
+  mettreAJourEtatDiscussion(ticket);
 
   // Charge les détails complets de l'abonné associé au ticket (renseigne aussi
   // l'ID utilisateur du client, nécessaire pour qu'un agent puisse l'appeler)
@@ -588,6 +591,37 @@ function mettreAJourEtatPriseEnCharge(ticket) {
       if (btnAppelAudio) btnAppelAudio.title = "Disponible une fois qu'un agent a pris en charge le ticket";
       if (btnAppelVideo) btnAppelVideo.title = "Disponible une fois qu'un agent a pris en charge le ticket";
     }
+  }
+
+  // Verrouille l'interface de discussion si le ticket est fermé.
+  mettreAJourEtatDiscussion(ticket);
+}
+
+function mettreAJourEtatDiscussion(ticket) {
+  const ferme = ticket?.statut === 'ferme';
+  const formMessage = document.getElementById('form-message');
+  const inputMessage = document.getElementById('input-message');
+  const btnEmoji = document.getElementById('btn-emoji');
+  const btnFichier = document.getElementById('btn-fichier');
+  const selecteurEmoji = document.getElementById('selecteur-emoji');
+  const btnFermer = document.getElementById('btn-fermer-ticket');
+  const btnAppelAudio = document.getElementById('btn-appel-audio');
+  const btnAppelVideo = document.getElementById('btn-appel-video');
+  const btnAssigner = document.getElementById('btn-assigner-ticket');
+
+  [btnAppelAudio, btnAppelVideo, btnAssigner, btnFermer, btnEmoji, btnFichier, inputMessage].forEach((control) => {
+    if (control) control.disabled = ferme;
+  });
+
+  if (formMessage) {
+    formMessage.style.opacity = ferme ? '0.6' : '';
+    formMessage.querySelectorAll('input, button').forEach((el) => {
+      if (el) el.disabled = ferme;
+    });
+  }
+
+  if (selecteurEmoji && ferme) {
+    selecteurEmoji.classList.add('cache');
   }
 }
 
@@ -775,6 +809,8 @@ function initialiserReactionsMessage() {
   if (!fil) return;
 
   fil.addEventListener('click', (e) => {
+    if (ticketActifDonnees?.statut === 'ferme') return;
+
     const reactionButton = e.target.closest('.btn-reaction-message');
     if (reactionButton) {
       const bulle = reactionButton.closest('.bulle-message');
@@ -792,6 +828,7 @@ function initialiserReactionsMessage() {
 
     const option = e.target.closest('.reaction-option');
     if (option) {
+      if (ticketActifDonnees?.statut === 'ferme') return;
       const bulle = option.closest('.bulle-message');
       const messageId = bulle?.dataset.messageId;
       const emoji = option.dataset.emoji;
@@ -837,6 +874,10 @@ function initialiserFormulaireMessage() {
       
       if (!ticketActifId) {
         alert("Veuillez choisir ou ouvrir un ticket actif avant d'envoyer un message.");
+        return;
+      }
+      if (ticketActifDonnees?.statut === 'ferme') {
+        alert('Ce ticket est fermé, la conversation est close.');
         return;
       }
 
@@ -914,6 +955,11 @@ function initialiserFormulaireMessage() {
       
       if (!ticketActifId) {
         alert("Veuillez d'abord choisir un ticket.");
+        inputFichier.value = '';
+        return;
+      }
+      if (ticketActifDonnees?.statut === 'ferme') {
+        alert("Ce ticket est fermé, impossible d'ajouter un fichier.");
         inputFichier.value = '';
         return;
       }

@@ -7,10 +7,9 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20,
   if (statut) { valeurs.push(statut); conditions.push(`t.statut = $${valeurs.length}`); }
   if (agentId) { valeurs.push(agentId); conditions.push(`t.agent_id = $${valeurs.length}`); }
   
-  // Si clientId est fourni (id de utilisateurs), on filtre via la jointure clients
   if (clientId) { 
     valeurs.push(clientId); 
-    conditions.push(`c.utilisateur_id = $${valeurs.length}`); 
+    conditions.push(`c.id = $${valeurs.length}`); 
   }
 
   // Exclusivité : un agent ne doit voir dans la file QUE les tickets non

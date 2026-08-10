@@ -122,42 +122,28 @@ router.post('/', verifierJWT, garderRole('admin'), validationClient, validerRequ
 router.put('/:id', verifierJWT, garderRole('admin'), validationClient, validerRequete, clientsController.modifier);
 
 // 🟢 CHANGEMENT DE STATUT
-// Un admin peut définir n'importe quel statut sur n'importe quel client.
-// Un client peut uniquement se suspendre/réactiver LUI-MÊME (désactivation
-// temporaire) — jamais se résilier via cette route ni toucher à un autre
-// compte : la résiliation reste une décision admin (ou passe par la
-// suppression de compte self-service ci-dessous).
 router.patch(
   '/:id/statut',
   verifierJWT,
   body('statut').isIn(['actif', 'suspendu', 'resilie']).withMessage('Statut invalide'),
   validerRequete,
-  async (req, res, next) => {
+  (req, res, next) => {
     if (req.user.role === 'client') {
+      // req.user.id et req.params.id sont tous les deux des utilisateurs.id
+      // ici (le frontend envoie window.currentUser.id dans l'URL) : simple
+      // comparaison directe, pas besoin de résoudre clients.id à ce stade —
+      // le contrôleur changerStatut() s'en charge déjà en interne
+      // (WHERE id=$1 OR utilisateur_id=$1). Résoudre clients.id ICI puis le
+      // comparer à req.params.id (qui reste un utilisateurs.id) ne matche
+      // jamais : c'était la régression introduite par le dernier commit.
+      const ciblePropreCompte = String(req.user.id) === String(req.params.id);
       const statutAutorise = ['actif', 'suspendu'].includes(req.body.statut);
-      if (!statutAutorise) {
+      if (!ciblePropreCompte || !statutAutorise) {
         return res.status(403).json({
           message: 'Vous ne pouvez que suspendre ou réactiver votre propre compte',
         });
       }
-
-      try {
-        // ⚠️ CORRIGÉ : req.user.id est un ID de la table "utilisateurs" (issu du
-        // JWT), mais req.params.id désigne ici un ID de la table "clients" —
-        // ce sont deux espaces d'ID différents. On résout l'un vers l'autre
-        // avant de comparer, sinon la comparaison échoue systématiquement et
-        // un client ne peut jamais suspendre son propre compte.
-        const resultat = await db.query('SELECT id FROM clients WHERE utilisateur_id = $1', [req.user.id]);
-        const monClientId = resultat.rows[0]?.id;
-        if (!monClientId || String(monClientId) !== String(req.params.id)) {
-          return res.status(403).json({
-            message: 'Vous ne pouvez que suspendre ou réactiver votre propre compte',
-          });
-        }
-        return next();
-      } catch (err) {
-        return next(err);
-      }
+      return next();
     }
     return garderRole('admin')(req, res, next);
   },

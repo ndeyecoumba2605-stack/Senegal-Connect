@@ -11,7 +11,7 @@ Projet Fin de Module — Technologie Client-Serveur, L3 DSTI, Polytech Diamniadi
 - **Node.js** v20 ou supérieur
 - **npm** v9 ou supérieur
 - **Docker** & **Docker Compose** (pour le lancement conteneurisé)
-- **PostgreSQL** 14 (uniquement si exécuté hors Docker)
+- **PostgreSQL** 18 (uniquement si exécuté hors Docker)
 
 ---
 
@@ -80,6 +80,7 @@ npm run test:cov  # avec rapport de couverture
 | Forfaits | POST | `/api/forfaits` | Créer un forfait | Admin |
 | Factures | GET | `/api/factures` | Liste paginée des factures | Authentifié |
 | Factures | POST | `/api/factures/generer-mensuelles` | Génération automatique du cycle mensuel | Admin |
+| Factures | DELETE | `/api/factures/:id` | Supprimer une facture | Admin |
 | Tickets | GET | `/api/tickets` | Liste des tickets (filtrée selon le rôle) | Authentifié |
 | Tickets | POST | `/api/tickets` | Ouvrir un ticket de support | Client |
 | Tickets | PATCH | `/api/tickets/:id/assigner` | Prise en charge exclusive par un agent | Agent/Admin |

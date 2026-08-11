@@ -7,9 +7,9 @@ const logger = require('../config/logger');
 const COUT_BCRYPT = 12;
 const DUREE_VALIDITE_TOKEN_MINUTES = 30;
 
-async function inscrire(req, res, next) {
+async function creerUtilisateur(req, res, next, role) {
   try {
-    const { nom, prenom, email, mot_de_passe, role } = req.body;
+    const { nom, prenom, email, mot_de_passe } = req.body;
     const hash = await bcrypt.hash(mot_de_passe, COUT_BCRYPT);
 
     const resultat = await query(
@@ -23,6 +23,16 @@ async function inscrire(req, res, next) {
   } catch (err) {
     next(err);
   }
+}
+
+// Route publique: impossible de créer un agent ou un admin.
+function inscrire(req, res, next) {
+  return creerUtilisateur(req, res, next, 'client');
+}
+
+// Route réservée à un admin: le rôle a déjà été validé par le routeur.
+function inscrireInterne(req, res, next) {
+  return creerUtilisateur(req, res, next, req.body.role);
 }
 
 // POST /api/auth/inscription-client — inscription PUBLIQUE (sans JWT admin requis)
@@ -181,4 +191,4 @@ async function reinitialiserMotDePasse(req, res, next) {
   }
 }
 
-module.exports = { inscrire, inscrireClient, connecter, profil, demanderReinitialisation, reinitialiserMotDePasse };
+module.exports = { inscrire, inscrireInterne, inscrireClient, connecter, profil, demanderReinitialisation, reinitialiserMotDePasse };

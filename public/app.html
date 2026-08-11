@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -1057,7 +1058,7 @@
           return;
         }
 
-        const estAdmin = window.currentUser?.role === 'admin';
+        const estAdmin = String(window.currentUser?.role || '').toLowerCase() === 'admin';
         tbody.innerHTML = data.map(f => `
           <tr>
             <td><code>${f.reference}</code></td>
@@ -1066,7 +1067,10 @@
             <td>${Number(f.montant_fcfa).toLocaleString('fr-FR')} FCFA</td>
             <td><span class="badge-statut ${f.statut}">${f.statut}</span></td>
             <td>
-              ${estAdmin && f.statut !== 'payee' ? `<button class="btn-action btn-marquer-payee" data-id="${f.id}" style="padding:0.35rem 0.75rem; font-size:0.8rem;">Marquer payée</button>` : ''}
+              ${estAdmin ? `
+                ${f.statut !== 'payee' ? `<button class="btn-action btn-marquer-payee" data-id="${f.id}" style="padding:0.35rem 0.75rem; font-size:0.8rem; margin-right:0.35rem;">Marquer payée</button>` : ''}
+                <button class="btn-action btn-supprimer-facture" data-id="${f.id}" style="padding:0.35rem 0.75rem; font-size:0.8rem; background:#dc2626;">Supprimer</button>
+              ` : '<span style="color:#94a3b8;">Lecture seule</span>'}
             </td>
           </tr>
         `).join('');
@@ -1083,6 +1087,25 @@
               else alert('Impossible de mettre à jour cette facture.');
             } catch (err) {
               console.error('Erreur mise à jour facture:', err);
+            }
+          });
+        });
+
+        tbody.querySelectorAll('.btn-supprimer-facture').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Supprimer définitivement cette facture ?')) return;
+            try {
+              const res = await fetch(`/api/factures/${btn.dataset.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${jwtToken}` }
+              });
+              if (res.ok) chargerFactures();
+              else {
+                const erreur = await res.json().catch(() => ({}));
+                alert(erreur.message || 'Impossible de supprimer cette facture.');
+              }
+            } catch (err) {
+              console.error('Erreur suppression facture:', err);
             }
           });
         });

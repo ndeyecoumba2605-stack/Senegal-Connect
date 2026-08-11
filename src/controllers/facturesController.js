@@ -50,11 +50,11 @@ async function creer({ client_id, periode, montant_fcfa, date_echeance }) {
   const reference = await genererReference(periode);
 
   // IMPORTANT : date_echeance est NOT NULL avec un DEFAULT (NOW()+15 jours)
-  // dans le schéma. Passer explicitement `null` comme valeur du paramètre
-  // ($5) N'EST PAS équivalent à omettre la colonne : Postgres refuse un NULL
-  // explicite même sur une colonne avec DEFAULT, et lève une violation de
-  // contrainte NOT NULL (→ 500). On ne doit inclure la colonne dans l'INSERT
-  // QUE si une valeur a réellement été fournie, pour laisser le DEFAULT
+  // dans le schÃ©ma. Passer explicitement `null` comme valeur du paramÃ¨tre
+  // ($5) N'EST PAS Ã©quivalent Ã  omettre la colonne : Postgres refuse un NULL
+  // explicite mÃªme sur une colonne avec DEFAULT, et lÃ¨ve une violation de
+  // contrainte NOT NULL (â†’ 500). On ne doit inclure la colonne dans l'INSERT
+  // QUE si une valeur a rÃ©ellement Ã©tÃ© fournie, pour laisser le DEFAULT
   // s'appliquer sinon (cas de la facturation mensuelle automatique, qui ne
   // fournit jamais date_echeance).
   const resultat = date_echeance
@@ -80,10 +80,18 @@ async function changerStatut(id, statut) {
   return resultat.rows[0];
 }
 
-// ── Génération automatique des factures mensuelles ──────────────────────
-// Facture un mois pour tous les clients actifs abonnés à un forfait, en
-// évitant tout doublon si la fonction est rejouée (idempotent) : on ne crée
-// une facture que pour les clients qui n'en ont pas déjà une sur la période.
+async function supprimer(id) {
+  const resultat = await db.query(
+    'DELETE FROM factures WHERE id = $1 RETURNING id',
+    [id]
+  );
+  return resultat.rows.length > 0;
+}
+
+// â”€â”€ GÃ©nÃ©ration automatique des factures mensuelles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Facture un mois pour tous les clients actifs abonnÃ©s Ã  un forfait, en
+// Ã©vitant tout doublon si la fonction est rejouÃ©e (idempotent) : on ne crÃ©e
+// une facture que pour les clients qui n'en ont pas dÃ©jÃ  une sur la pÃ©riode.
 async function genererFacturesMensuelles(periode) {
   const p = periode || new Date().toISOString().slice(0, 7); // 'YYYY-MM'
 
@@ -110,8 +118,8 @@ async function genererFacturesMensuelles(periode) {
   return facturesCreees;
 }
 
-// ── Passage automatique en retard ────────────────────────────────────────
-// Toute facture "impayee" dont l'échéance est dépassée devient "en_retard".
+// â”€â”€ Passage automatique en retard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Toute facture "impayee" dont l'Ã©chÃ©ance est dÃ©passÃ©e devient "en_retard".
 async function marquerFacturesEnRetard() {
   const resultat = await db.query(
     `UPDATE factures SET statut = 'en_retard'
@@ -122,6 +130,6 @@ async function marquerFacturesEnRetard() {
 }
 
 module.exports = {
-  lister, detail, creer, changerStatut,
+  lister, detail, creer, changerStatut, supprimer,
   genererFacturesMensuelles, marquerFacturesEnRetard,
 };

@@ -2,13 +2,14 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const {
   inscrire,
+  inscrireInterne,
   inscrireClient,
   connecter,
   profil,
   demanderReinitialisation,
   reinitialiserMotDePasse,
 } = require('../controllers/authController');
-const { verifierJWT } = require('../middleware/auth');
+const { verifierJWT, garderRole } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -22,6 +23,7 @@ function validerRequete(req, res, next) {
   next();
 }
 
+// Inscription publique: le rôle est toujours client, même si un champ role est envoyé.
 router.post(
   '/register',
   [
@@ -29,10 +31,26 @@ router.post(
     body('prenom').trim().notEmpty().withMessage('Le prénom est requis'),
     body('email').isEmail().withMessage('Email invalide'),
     body('mot_de_passe').isLength({ min: 6 }).withMessage('6 caractères minimum'),
-    body('role').isIn(['client', 'agent', 'admin']).withMessage('Rôle invalide'),
+    body('role').optional().equals('client').withMessage('Une inscription publique crée uniquement un client'),
   ],
   validerRequete,
   inscrire
+);
+
+// Création d'un agent/admin: route séparée et protégée, utilisée par le back-office.
+router.post(
+  '/register-interne',
+  verifierJWT,
+  garderRole('admin'),
+  [
+    body('nom').trim().notEmpty().withMessage('Le nom est requis'),
+    body('prenom').trim().notEmpty().withMessage('Le prénom est requis'),
+    body('email').isEmail().withMessage('Email invalide'),
+    body('mot_de_passe').isLength({ min: 6 }).withMessage('6 caractères minimum'),
+    body('role').isIn(['agent', 'admin']).withMessage('Le rôle doit être agent ou admin'),
+  ],
+  validerRequete,
+  inscrireInterne
 );
 
 router.post(

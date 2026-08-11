@@ -12,9 +12,9 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20,
     conditions.push(`c.id = $${valeurs.length}`); 
   }
 
-  // L'agent peut voir tous les tickets dans la file. L'accès exact reste
-  // contrôlé par l'API lorsqu'il tente d'ouvrir un ticket déjà pris par un
-  // collègue.
+  // L'agent peut voir tous les tickets dans la file. L'accÃ¨s exact reste
+  // contrÃ´lÃ© par l'API lorsqu'il tente d'ouvrir un ticket dÃ©jÃ  pris par un
+  // collÃ¨gue.
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const offset = (page - 1) * limite;
 
@@ -24,7 +24,7 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20,
   );
   
   // LEFT JOIN vers utilisateurs pour exposer le nom du client ET celui de
-  // l'agent assigné (utile pour la vue admin : "quel agent a pris en charge
+  // l'agent assignÃ© (utile pour la vue admin : "quel agent a pris en charge
   // ce ticket, pour quel client").
   const donnees = await db.query(
     `SELECT t.*,
@@ -51,21 +51,21 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20,
   };
 }
 
-// 🎯 CRÉATION DU TICKET CONFORME À SCHEMA.SQL
+// ðŸŽ¯ CRÃ‰ATION DU TICKET CONFORME Ã€ SCHEMA.SQL
 async function creerTicket({ clientId, sujet, description }) {
-  // 1. Récupérer l'ID réel dans la table 'clients' correspondant à l'utilisateur connecté (utilisateurs.id)
+  // 1. RÃ©cupÃ©rer l'ID rÃ©el dans la table 'clients' correspondant Ã  l'utilisateur connectÃ© (utilisateurs.id)
   const clientRes = await db.query(
     'SELECT id FROM clients WHERE utilisateur_id = $1',
     [clientId]
   );
 
   if (clientRes.rows.length === 0) {
-    throw new Error("Impossible de créer le ticket : aucun profil 'client' associé à cet utilisateur.");
+    throw new Error("Impossible de crÃ©er le ticket : aucun profil 'client' associÃ© Ã  cet utilisateur.");
   }
 
   const realClientId = clientRes.rows[0].id;
 
-  // 2. Création du ticket lié à clients(id)
+  // 2. CrÃ©ation du ticket liÃ© Ã  clients(id)
   const resultat = await db.query(
     `INSERT INTO tickets (client_id, sujet, statut, ouvert_le) 
      VALUES ($1, $2, 'ouvert', NOW()) 
@@ -97,12 +97,12 @@ async function changerStatutTicket(id, statut) {
 }
 
 async function assignerAgent(id, agentId) {
-  // Exclusivité : un ticket déjà pris en charge par un AUTRE agent ne peut pas
-  // être réassigné. Réappeler avec le même agentId (idempotent) reste autorisé.
+  // ExclusivitÃ© : un ticket dÃ©jÃ  pris en charge par un AUTRE agent ne peut pas
+  // Ãªtre rÃ©assignÃ©. RÃ©appeler avec le mÃªme agentId (idempotent) reste autorisÃ©.
   const existant = await db.query(`SELECT agent_id FROM tickets WHERE id = $1`, [id]);
   if (existant.rows.length === 0) return null;
   if (existant.rows[0].agent_id && existant.rows[0].agent_id !== agentId) {
-    const erreur = new Error('Ce ticket est déjà pris en charge par un autre agent');
+    const erreur = new Error('Ce ticket est dÃ©jÃ  pris en charge par un autre agent');
     erreur.statut409 = true;
     throw erreur;
   }
@@ -114,36 +114,49 @@ async function assignerAgent(id, agentId) {
   return resultat.rows[0];
 }
 
-// ── Contrôle d'accès à un ticket ─────────────────────────────────────────
-// Règles :
-//  - admin              → accès total (supervision, réassignation possible)
-//  - agent               → accès uniquement si le ticket n'est pas encore
-//                          assigné (pour pouvoir le prendre en charge) OU
-//                          s'il lui est déjà assigné. Un ticket pris en
-//                          charge par un autre agent est invisible pour lui.
-//  - client              → accès uniquement à ses propres tickets
-async function verifierAccesTicket(ticketId, user) {
-  const resultat = await db.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+// â”€â”€ ContrÃ´le d'accÃ¨s centralisÃ© Ã  un ticket â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Par dÃ©faut, l'accÃ¨s concerne les actions mÃ©tier: un agent doit Ãªtre
+// assignÃ© au ticket. La seule exception est ticket:rejoindre, qui peut
+// autoriser temporairement un agent Ã  rejoindre un ticket non assignÃ© afin
+// de pouvoir le prendre en charge.
+async function verifierAccesTicket(ticketId, user, options = {}) {
+  const { allowUnassignedAgent = false } = options;
+  const role = String(user?.role || '').toLowerCase();
+  const resultat = await db.query('SELECT * FROM tickets WHERE id = $1', [ticketId]);
   const ticket = resultat.rows[0];
-  if (!ticket) return { ticket: null, autorise: false };
 
-  if (user.role === 'admin') return { ticket, autorise: true };
-
-  if (user.role === 'agent') {
-    const autorise = !ticket.agent_id || ticket.agent_id === user.id;
-    return { ticket, autorise };
+  if (!ticket) {
+    return { ticket: null, autorise: false, raison: 'introuvable' };
   }
 
-  if (user.role === 'client') {
+  if (role === 'admin') {
+    return { ticket, autorise: true, raison: 'admin' };
+  }
+
+  if (role === 'agent') {
+    const estAgentAssigne = String(ticket.agent_id || '') === String(user.id);
+    const estTicketDisponible = allowUnassignedAgent && !ticket.agent_id;
+    return {
+      ticket,
+      autorise: estAgentAssigne || estTicketDisponible,
+      raison: estAgentAssigne ? 'agent_assigne' : estTicketDisponible ? 'ticket_disponible' : 'agent_non_assigne',
+    };
+  }
+
+  if (role === 'client') {
     const clientRes = await db.query(
-      `SELECT id FROM clients WHERE utilisateur_id = $1`,
+      'SELECT id FROM clients WHERE utilisateur_id = $1',
       [user.id]
     );
     const monClientId = clientRes.rows[0]?.id;
-    return { ticket, autorise: monClientId === ticket.client_id };
+    return {
+      ticket,
+      autorise: String(monClientId || '') === String(ticket.client_id || ''),
+      raison: String(monClientId || '') === String(ticket.client_id || '') ? 'client_proprietaire' : 'client_autre',
+    };
   }
 
-  return { ticket, autorise: false };
+  return { ticket, autorise: false, raison: 'role_inconnu' };
 }
 
 async function historiqueMessages(ticketId, avant, limite = 50) {

@@ -3,6 +3,11 @@ const db = require('../config/db');
 module.exports = function initAppels(io) {
   io.on('connection', (socket) => {
     const user = socket.data.user;
+    // Assurer que chaque socket rejoint sa room utilisateur et, si agent, la room agents
+    if (user && user.id) {
+      socket.join(`user:${user.id}`);
+      if (String(user.role || '').toLowerCase() === 'agent') socket.join('agents');
+    }
 
     socket.on('appel:initier', async ({ ticketId, destinataireId, type, peerId }) => {
       try {

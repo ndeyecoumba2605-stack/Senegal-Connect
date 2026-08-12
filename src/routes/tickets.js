@@ -233,7 +233,7 @@ const ticketsController = require('../controllers/ticketsController');
  *             type: object
  *             required: [contenu]
  *             properties:
- *               contenu: { type: string, example: 'Bonjour, j\'ai besoin de support.' }
+ *               contenu: { type: string, example: "Bonjour, j'ai besoin de support." }
  *     responses:
  *       201:
  *         description: Message créé

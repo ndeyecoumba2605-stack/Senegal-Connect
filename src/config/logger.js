@@ -28,7 +28,7 @@ const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: estProd ? formatProd : formatDev,
   transports,
-  silent: estTest, // Aucun log affiché pendant les tests Jest
+  silent: estTest,
 });
 
 logger.stream = { write: (message) => logger.http(message.trim()) };

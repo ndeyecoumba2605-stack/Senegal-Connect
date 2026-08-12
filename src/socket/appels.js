@@ -11,6 +11,30 @@ module.exports = function initAppels(io) {
 
     socket.on('appel:initier', async ({ ticketId, destinataireId, type, peerId }) => {
       try {
+        // Vérifier que le ticket existe, est en statut 'en_cours' et que
+        // l'appelant fait partie des participants (client ou agent assigné).
+        const ticketRes = await db.query(
+          `SELECT t.id, t.statut, t.agent_id, c.utilisateur_id AS client_utilisateur_id
+           FROM tickets t JOIN clients c ON t.client_id = c.id WHERE t.id = $1`,
+          [ticketId]
+        );
+        const ticket = ticketRes.rows[0];
+        if (!ticket) return socket.emit('erreur', { message: 'Ticket introuvable' });
+        if (ticket.statut !== 'en_cours') return socket.emit('erreur', { message: 'L\'appel n\'est possible que si le ticket est en statut "en_cours"' });
+
+        const role = String(user.role || '').toLowerCase();
+        const estClient = role === 'client' && String(user.id) === String(ticket.client_utilisateur_id);
+        const estAgent = role === 'agent' && String(user.id) === String(ticket.agent_id);
+        if (!estClient && !estAgent) return socket.emit('erreur', { message: 'Vous n\'êtes pas autorisé à initier un appel sur ce ticket' });
+
+        // Vérifier que le destinataire correspond bien à l'autre partie attendue
+        if (estClient && String(destinataireId) !== String(ticket.agent_id)) {
+          return socket.emit('erreur', { message: 'Aucun agent assigné correspondant au destinataire' });
+        }
+        if (estAgent && String(destinataireId) !== String(ticket.client_utilisateur_id)) {
+          return socket.emit('erreur', { message: 'Destinataire invalide pour cet appel' });
+        }
+
         // statut initial doit respecter la contrainte CHECK de schema.sql : 'sonnerie'
         const resultat = await db.query(
           `INSERT INTO appels (ticket_id, initiateur_id, destinataire_id, type, statut)
@@ -21,6 +45,7 @@ module.exports = function initAppels(io) {
 
         io.to(`user:${destinataireId}`).emit('appel:entrant', {
           appelId: appel.id,
+          ticketId,
           initiateur: { id: user.id, nom: user.nom },
           peerIdInitiateur: peerId,
           type,
@@ -31,16 +56,28 @@ module.exports = function initAppels(io) {
     });
 
     socket.on('appel:accepter', async ({ appelId, initiateurId, peerId }) => {
+      // Seul le destinataire peut accepter ; vérifier que l'appel existe et
+      // que l'utilisateur est bien destinataire.
+      const aRes = await db.query(`SELECT destinataire_id, ticket_id FROM appels WHERE id = $1`, [appelId]);
+      const a = aRes.rows[0];
+      if (!a) return socket.emit('erreur', { message: 'Appel introuvable' });
+      if (String(a.destinataire_id) !== String(user.id)) return socket.emit('erreur', { message: 'Vous n\'êtes pas destinataire de cet appel' });
+
       await db.query(`UPDATE appels SET statut = 'accepte' WHERE id = $1`, [appelId]);
-      io.to(`user:${initiateurId}`).emit('appel:accepte', { appelId, peerId });
+      io.to(`user:${initiateurId}`).emit('appel:accepte', { appelId, peerId, ticketId: a.ticket_id });
     });
 
     socket.on('appel:refuser', async ({ appelId, initiateurId }) => {
+      const aRes = await db.query(`SELECT destinataire_id, ticket_id FROM appels WHERE id = $1`, [appelId]);
+      const a = aRes.rows[0];
+      if (!a) return socket.emit('erreur', { message: 'Appel introuvable' });
+      if (String(a.destinataire_id) !== String(user.id)) return socket.emit('erreur', { message: 'Vous n\'êtes pas destinataire de cet appel' });
+
       await db.query(
         `UPDATE appels SET statut = 'refuse', fin_le = NOW() WHERE id = $1`,
         [appelId]
       );
-      io.to(`user:${initiateurId}`).emit('appel:refuse', { appelId });
+      io.to(`user:${initiateurId}`).emit('appel:refuse', { appelId, ticketId: a.ticket_id });
     });
 
     socket.on('appel:reaction', ({ appelId, emoji, autrePartieId }) => {

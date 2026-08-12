@@ -160,6 +160,7 @@ function connecterSocket() {
   socket.on('appel:refuse', () => window.gererAppelRefuse && window.gererAppelRefuse());
   socket.on('appel:termine', () => window.gererAppelTermine && window.gererAppelTermine());
   socket.on('appel:reaction', (donnees) => window.gererAppelReaction && window.gererAppelReaction(donnees));
+  socket.on('appel:controle', (donnees) => window.gererControleDistant && window.gererControleDistant(donnees));
 }
 
 // =========================================================================

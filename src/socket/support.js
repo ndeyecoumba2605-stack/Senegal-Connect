@@ -141,6 +141,38 @@ module.exports = function initSupport(io) {
         const acces = await verifierAccesSocket(socket, ticketId, { allowUnassignedAgent: true });
         if (!acces) return;
         socket.join(`ticket:${ticketId}`);
+
+        // Marquer en base comme 'lu' tous les messages envoyés par l'autre
+        // participant que cet utilisateur n'a pas encore marqués comme lus.
+        try {
+          const insertRes = await db.query(
+            `INSERT INTO messages_statut (message_id, utilisateur_id, statut, lu_le)
+             SELECT m.id, $1, 'lu', NOW()
+             FROM messages m
+             LEFT JOIN messages_statut ms ON ms.message_id = m.id AND ms.utilisateur_id = $1
+             WHERE m.ticket_id = $2 AND m.expediteur_id <> $1 AND ms.message_id IS NULL
+             RETURNING message_id`,
+            [user.id, ticketId]
+          );
+
+          if (insertRes.rows.length) {
+            // Notifier la room ticket et les expéditeurs concernés
+            const ids = insertRes.rows.map(r => r.message_id);
+            // Récupérer les expéditeurs pour notifier individuellement
+            const expRes = await db.query(
+              `SELECT id, expediteur_id FROM messages WHERE id = ANY($1::int[])`,
+              [ids]
+            );
+            expRes.rows.forEach((row) => {
+              const payload = { messageId: row.id, statut: 'lu', utilisateurId: user.id };
+              io.to(`user:${row.expediteur_id}`).emit('message:statut', payload);
+            });
+            // Notifier aussi la room du ticket (pour mettre à jour la vue de tous)
+            ids.forEach((mid) => io.to(`ticket:${ticketId}`).emit('message:statut', { messageId: mid, statut: 'lu', utilisateurId: user.id }));
+          }
+        } catch (innerErr) {
+          logger.error(`Erreur marquage automatique lu pour ticket ${ticketId}: ${innerErr.message}`);
+        }
       } catch (err) {
         logger.error(`Erreur accès room ticket ${ticketId}: ${err.message}`);
         socket.emit('erreur', { message: 'Impossible de rejoindre ce ticket' });
@@ -220,10 +252,9 @@ module.exports = function initSupport(io) {
            DO UPDATE SET statut='lu', lu_le=NOW()`,
           [messageId, user.id]
         );
-        io.to(`user:${messageRes.rows[0].expediteur_id}`).emit('message:statut', {
-          messageId,
-          statut: 'lu',
-        });
+        const payload = { messageId, statut: 'lu', utilisateurId: user.id };
+        io.to(`user:${messageRes.rows[0].expediteur_id}`).emit('message:statut', payload);
+        io.to(`ticket:${ticketId}`).emit('message:statut', payload);
       } catch (err) {
         logger.error(`Erreur accusé message ${messageId}: ${err.message}`);
         socket.emit('erreur', { message: 'Impossible de marquer le message comme lu' });

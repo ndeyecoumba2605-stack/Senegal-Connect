@@ -168,12 +168,19 @@ async function historiqueMessages(ticketId, avant, limite = 50) {
   }
   valeurs.push(limite);
 
-  const resultat = await db.query(
-    `SELECT * FROM messages WHERE ${conditions.join(' AND ')}
-     ORDER BY envoye_le DESC LIMIT $${valeurs.length}`,
-    valeurs
-  );
-  return resultat.rows.reverse();
+    const resultat = await db.query(
+      `SELECT m.*,
+              COALESCE((
+                SELECT json_agg(ms.utilisateur_id)
+                FROM messages_statut ms
+                WHERE ms.message_id = m.id AND ms.statut = 'lu'
+              ), '[]') AS lus_par
+       FROM messages m
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY m.envoye_le DESC LIMIT $${valeurs.length}`,
+      valeurs
+    );
+    return resultat.rows.reverse();
 }
 
 async function historiqueAppels(ticketId) {

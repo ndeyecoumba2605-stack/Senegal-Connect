@@ -713,6 +713,36 @@ body {
   margin-top: 0.5rem;
 }
 
+/* Accusés de réception : coche simple (inséré en BDD) gris, double coche (lu) bleu */
+.accuse {
+  font-size: 0.78rem;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.accuse i {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.accuse.pending i.fa-check {
+  color: #94a3b8; /* gris */
+  opacity: 0.95;
+}
+.accuse.read i.fa-check-double {
+  color: #25c0eb; /* bleu */
+}
+
+/* Small visual tweak to make the chat look a bit cleaner */
+.bulle-message.envoye {
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.12);
+}
+.bulle-message.recu {
+  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.04);
+}
+
+.fil-messages { padding: 1.5rem; }
+
 /* Colonne 3 : Détails Client */
 .colonne-details {
   width: 250px;

@@ -5,6 +5,499 @@ const { verifierJWT } = require('../middleware/auth');
 const { upload, typeDepuisMime } = require('../middleware/upload');
 const ticketsController = require('../controllers/ticketsController');
 
+/**
+ * @openapi
+ * /api/tickets:
+ *   get:
+ *     tags:
+ *       - Tickets
+ *     summary: Liste des tickets
+ *     description: Retourne les tickets filtrés selon le rôle et les critères fournis.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: statut
+ *         schema:
+ *           type: string
+ *           example: ouvert
+ *       - in: query
+ *         name: client_id
+ *         schema:
+ *           type: integer
+ *           example: 5
+ *       - in: query
+ *         name: agent_id
+ *         schema:
+ *           type: integer
+ *           example: 3
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *       - in: query
+ *         name: limite
+ *         schema:
+ *           type: integer
+ *           example: 20
+ *     responses:
+ *       200:
+ *         description: Liste paginée de tickets
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Pagination'
+ *       401:
+ *         description: Token manquant ou invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       403:
+ *         description: Accès refusé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       500:
+ *         description: Erreur interne du serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *
+ *   post:
+ *     tags:
+ *       - Tickets
+ *     summary: Création d'un nouveau ticket client
+ *     description: Crée un ticket de support pour le client connecté.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [sujet]
+ *             properties:
+ *               sujet: { type: string, example: 'Problème de facturation' }
+ *               description: { type: string, example: 'Ma dernière facture est incorrecte.' }
+ *     responses:
+ *       201:
+ *         description: Ticket créé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       401:
+ *         description: Token manquant ou invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       422:
+ *         description: Requête invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       500:
+ *         description: Erreur interne du serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *
+ * /api/tickets/{id}:
+ *   get:
+ *     tags:
+ *       - Tickets
+ *     summary: Détails d'un ticket
+ *     description: Récupère un ticket si l'utilisateur y a accès.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     responses:
+ *       200:
+ *         description: Ticket trouvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       401:
+ *         description: Token manquant ou invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       403:
+ *         description: Accès refusé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       404:
+ *         description: Ticket introuvable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       500:
+ *         description: Erreur interne du serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *
+ * /api/tickets/{id}/assigner:
+ *   patch:
+ *     tags:
+ *       - Tickets
+ *     summary: Prise en charge d'un ticket par un agent
+ *     description: Permet à un agent de s'assigner un ticket non pris en charge.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     responses:
+ *       200:
+ *         description: Ticket assigné
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       401:
+ *         description: Token manquant ou invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       403:
+ *         description: Accès refusé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       404:
+ *         description: Ticket introuvable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       409:
+ *         description: Ticket déjà pris en charge
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       500:
+ *         description: Erreur interne du serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *
+ * /api/tickets/{id}/messages:
+ *   post:
+ *     tags:
+ *       - Tickets
+ *     summary: Envoyer un message sur un ticket
+ *     description: Ajoute un message texte dans l'historique du ticket.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [contenu]
+ *             properties:
+ *               contenu: { type: string, example: 'Bonjour, j\'ai besoin de support.' }
+ *     responses:
+ *       201:
+ *         description: Message créé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       401:
+ *         description: Token manquant ou invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       403:
+ *         description: Accès refusé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       422:
+ *         description: Requête invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       500:
+ *         description: Erreur interne du serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *
+ *   get:
+ *     tags:
+ *       - Tickets
+ *     summary: Historique des messages d'un ticket
+ *     description: Retourne les messages du ticket si l'utilisateur y a accès.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *       - in: query
+ *         name: avant
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *           example: '2026-08-01T00:00:00Z'
+ *     responses:
+ *       200:
+ *         description: Historique de messages
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Token manquant ou invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       403:
+ *         description: Accès refusé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       404:
+ *         description: Ticket introuvable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       500:
+ *         description: Erreur interne du serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *
+ * /api/tickets/{id}/statut:
+ *   patch:
+ *     tags:
+ *       - Tickets
+ *     summary: Changer le statut d'un ticket
+ *     description: Met à jour le statut du ticket si l'utilisateur est autorisé.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [statut]
+ *             properties:
+ *               statut:
+ *                 type: string
+ *                 enum: [ouvert, en_cours, ferme]
+ *                 example: en_cours
+ *     responses:
+ *       200:
+ *         description: Statut mis à jour
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       401:
+ *         description: Token manquant ou invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       403:
+ *         description: Accès refusé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       404:
+ *         description: Ticket introuvable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       422:
+ *         description: Requête invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       500:
+ *         description: Erreur interne du serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *
+ * /api/tickets/{id}/appels:
+ *   get:
+ *     tags:
+ *       - Tickets
+ *     summary: Historique des appels d'un ticket
+ *     description: Retourne les enregistrements d'appel liés au ticket.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     responses:
+ *       200:
+ *         description: Appels récupérés
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Token manquant ou invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       403:
+ *         description: Accès refusé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       404:
+ *         description: Ticket introuvable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       500:
+ *         description: Erreur interne du serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *
+ * /api/tickets/{id}/fichier:
+ *   post:
+ *     tags:
+ *       - Tickets
+ *     summary: Partager un fichier sur un ticket
+ *     description: Télécharge un fichier et l'associe comme message au ticket.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [fichier]
+ *             properties:
+ *               fichier:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Fichier partagé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         description: Aucune pièce jointe reçue
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       401:
+ *         description: Token manquant ou invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       403:
+ *         description: Accès refusé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ *       500:
+ *         description: Erreur interne du serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erreur'
+ */
 const router = express.Router();
 
 // ── Middleware d'accès exclusif à un ticket ──────────────────────────────

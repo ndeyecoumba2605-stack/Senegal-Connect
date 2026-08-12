@@ -12,7 +12,7 @@ const options = {
     servers: [{ url: 'http://localhost:3000', description: 'Serveur local' }],
     components: {
       securitySchemes: {
-        bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        BearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       },
       schemas: {
         Client: {
@@ -34,7 +34,7 @@ const options = {
             nom: { type: 'string', example: 'Forfait Confort' },
             quota_data_go: { type: 'number', example: 10 },
             quota_voix_min: { type: 'integer', example: 300 },
-            prix_mensuel_fcfa: { type: 'number', example: 5000 },
+            prix_mensuel_fcfa: { type: 'number', example: 8000 },
             actif: { type: 'boolean', example: true },
           },
         },
@@ -45,12 +45,8 @@ const options = {
             reference: { type: 'string', example: 'FAC-202607-0001' },
             client_id: { type: 'integer', example: 1 },
             periode: { type: 'string', example: '2026-07' },
-            montant_fcfa: { type: 'number', example: 5000 },
-            statut: {
-              type: 'string',
-              enum: ['payee', 'impayee', 'en_retard'],
-              description: 'Statut de la facture (ex: PAYEE, EN_ATTENTE, ANNULEE)',
-            },
+            montant_fcfa: { type: 'number', example: 8000 },
+            statut: { type: 'string', enum: ['payee', 'impayee', 'en_retard'] },
           },
         },
         Pagination: {
@@ -60,22 +56,15 @@ const options = {
             page: { type: 'integer', example: 1 },
             limite: { type: 'integer', example: 20 },
             total_pages: { type: 'integer', example: 7 },
-            data: {
-              type: 'array',
-              items: { type: 'object' },
-            },
           },
         },
         Erreur: {
           type: 'object',
-          properties: {
-            message: { type: 'string', example: 'Ressource introuvable' },
-            code: { type: 'string', example: 'ERREUR_NOT_FOUND' },
-          },
+          properties: { message: { type: 'string', example: 'Ressource introuvable' } },
         },
       },
     },
-    security: [{ bearerAuth: [] }],
+    security: [{ BearerAuth: [] }],
   },
   apis: ['./src/routes/*.js'],
 };

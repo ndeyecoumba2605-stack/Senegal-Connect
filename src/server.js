@@ -14,6 +14,21 @@ const swaggerUi = require('swagger-ui-express');
 const app = express();
 const server = http.createServer(app);
 
+const PEER_PORT = Number(process.env.PEER_PORT || 9000);
+
+const peerApp = express();
+const peerHttpServer = http.createServer(peerApp);
+
+if (process.env.NODE_ENV !== 'test') {
+  const peerServer = ExpressPeerServer(peerHttpServer, {
+    debug: process.env.NODE_ENV !== 'production',
+    path: '/',
+    allow_discovery: false,
+  });
+
+  peerApp.use('/peerjs', peerServer);
+}
+
 // 🛠️ FIX CORS & TRANSPORTS :
 // '*' est incompatible avec credentials:true (rejeté par les navigateurs).
 // On retombe sur une origine locale explicite si CORS_ORIGINS n'est pas défini.
@@ -28,13 +43,17 @@ const io = new Server(server, {
     credentials: true
   },
   path: '/socket.io',
-  transports: ['polling', 'websocket'] // Permet la négociation propre HTTP -> WS
+  transports: ['websocket'], // Permet la négociation propre HTTP -> WS
+  allowUpgrades: false
 });
 
 // IMPORTANT : permet à req.app.get('io') de fonctionner dans les routes
 app.set('io', io);
 
-app.use(cors({ origin: allowedOrigins }));
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json());
 
 app.use((req, res, next) => {
@@ -75,16 +94,6 @@ app.get('/api/health', (req, res) =>
 require('./socket/support')(io);
 require('./socket/appels')(io);
 
-// Server PeerJS pour la visio/voix
-if (process.env.NODE_ENV !== 'test') {
-  const peerServer = ExpressPeerServer(server, {
-    debug: process.env.NODE_ENV !== 'production',
-    path: '/',
-    allow_discovery: false,
-  });
-
-  app.use('/peerjs', peerServer);
-}
 
 // Tâches planifiées : facturation mensuelle automatique + passage en retard
 if (process.env.NODE_ENV !== 'test') {
@@ -98,7 +107,15 @@ app.use(gestionnaireErreurs);
 
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
-  server.listen(PORT, () => logger.info(`Serveur démarré sur le port ${PORT}`));
+  server.listen(PORT, () => {
+    logger.info(`Serveur API démarré sur le port ${PORT}`);
+  });
+
+  if (process.env.NODE_ENV !== 'test') {
+    peerHttpServer.listen(PEER_PORT, () => {
+      logger.info(`Serveur PeerJS démarré sur le port ${PEER_PORT}`);
+    });
+  }
 }
 
 module.exports = { app, server };

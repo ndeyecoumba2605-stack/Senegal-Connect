@@ -17,11 +17,11 @@ function initPeer() {
   const secure = window.location.protocol === 'https:';
 
   peer = new Peer(undefined, {
-    host,
-    port,
+    host: window.location.hostname || 'localhost',
+    port: 9000,
     path: '/peerjs',
-    secure,
-    debug: 2,
+    secure: window.location.protocol === 'https:',
+    debug: 2
   });
 
   peer.on('open', (id) => {

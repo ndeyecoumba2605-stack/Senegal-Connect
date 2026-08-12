@@ -3,6 +3,7 @@ services:
     build: .
     ports:
       - "3000:3000"
+      - "9000:9000"
     env_file: .env
     environment:
       # Écrase DB_HOST du .env (qui vise "localhost" pour un usage hors Docker) :

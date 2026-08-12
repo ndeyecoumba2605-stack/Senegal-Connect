@@ -188,7 +188,17 @@ function idAutrePartieDuTicket() {
 
 // Global Handlers pour Sockets / Événements
 window.gererAppelEntrant = function ({ appelId, initiateur, peerIdInitiateur, type }) {
-  appelEnCours = { appelId, autrePartieId: initiateur.id, peerIdDistant: peerIdInitiateur, type };
+  // ⚠️ CORRIGÉ : ticketId manquait ici. Sans lui, quand c'est la personne qui
+  // RÉPOND à l'appel qui raccroche en premier, l'événement "appel:terminer"
+  // partait avec ticketId undefined → la diffusion via la room ticket:{id}
+  // échouait côté serveur, l'autre participant n'était pas notifié de façon fiable.
+  appelEnCours = {
+    appelId,
+    autrePartieId: initiateur.id,
+    peerIdDistant: peerIdInitiateur,
+    type,
+    ticketId: window.ticketActifId,
+  };
   
   const texteAppelEntrant = document.getElementById('texte-appel-entrant');
   if (texteAppelEntrant) texteAppelEntrant.textContent = `Appel ${type === 'video' ? 'vidéo' : 'audio'} de ${initiateur.nom || 'un utilisateur'}`;

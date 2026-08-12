@@ -12,9 +12,9 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20,
     conditions.push(`c.id = $${valeurs.length}`); 
   }
 
-  // L'agent peut voir tous les tickets dans la file. L'accÃ¨s exact reste
-  // contrÃ´lÃ© par l'API lorsqu'il tente d'ouvrir un ticket dÃ©jÃ  pris par un
-  // collÃ¨gue.
+  // L'agent peut voir tous les tickets dans la file. L'accès exact reste
+  // contrôlé par l'API lorsqu'il tente d'ouvrir un ticket déjà pris par un
+  // collègue.
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const offset = (page - 1) * limite;
 
@@ -24,7 +24,7 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20,
   );
   
   // LEFT JOIN vers utilisateurs pour exposer le nom du client ET celui de
-  // l'agent assignÃ© (utile pour la vue admin : "quel agent a pris en charge
+  // l'agent assigné (utile pour la vue admin : "quel agent a pris en charge
   // ce ticket, pour quel client").
   const donnees = await db.query(
     `SELECT t.*,
@@ -51,21 +51,21 @@ async function listerTickets({ statut, agentId, clientId, page = 1, limite = 20,
   };
 }
 
-// ðŸŽ¯ CRÃ‰ATION DU TICKET CONFORME Ã€ SCHEMA.SQL
+// 🎯 CRÉATION DU TICKET CONFORME À SCHEMA.SQL
 async function creerTicket({ clientId, sujet, description }) {
-  // 1. RÃ©cupÃ©rer l'ID rÃ©el dans la table 'clients' correspondant Ã  l'utilisateur connectÃ© (utilisateurs.id)
+  // 1. Récupérer l'ID réel dans la table 'clients' correspondant à l'utilisateur connecté (utilisateurs.id)
   const clientRes = await db.query(
     'SELECT id FROM clients WHERE utilisateur_id = $1',
     [clientId]
   );
 
   if (clientRes.rows.length === 0) {
-    throw new Error("Impossible de crÃ©er le ticket : aucun profil 'client' associÃ© Ã  cet utilisateur.");
+    throw new Error("Impossible de créer le ticket : aucun profil 'client' associé à cet utilisateur.");
   }
 
   const realClientId = clientRes.rows[0].id;
 
-  // 2. CrÃ©ation du ticket liÃ© Ã  clients(id)
+  // 2. Création du ticket lié à clients(id)
   const resultat = await db.query(
     `INSERT INTO tickets (client_id, sujet, statut, ouvert_le) 
      VALUES ($1, $2, 'ouvert', NOW()) 
@@ -97,12 +97,12 @@ async function changerStatutTicket(id, statut) {
 }
 
 async function assignerAgent(id, agentId) {
-  // ExclusivitÃ© : un ticket dÃ©jÃ  pris en charge par un AUTRE agent ne peut pas
-  // Ãªtre rÃ©assignÃ©. RÃ©appeler avec le mÃªme agentId (idempotent) reste autorisÃ©.
+  // Exclusivité : un ticket déjà pris en charge par un AUTRE agent ne peut pas
+  // être réassigné. Réappeler avec le même agentId (idempotent) reste autorisé.
   const existant = await db.query(`SELECT agent_id FROM tickets WHERE id = $1`, [id]);
   if (existant.rows.length === 0) return null;
   if (existant.rows[0].agent_id && existant.rows[0].agent_id !== agentId) {
-    const erreur = new Error('Ce ticket est dÃ©jÃ  pris en charge par un autre agent');
+    const erreur = new Error('Ce ticket est déjà pris en charge par un autre agent');
     erreur.statut409 = true;
     throw erreur;
   }
@@ -114,10 +114,10 @@ async function assignerAgent(id, agentId) {
   return resultat.rows[0];
 }
 
-// â”€â”€ ContrÃ´le d'accÃ¨s centralisÃ© Ã  un ticket â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Par dÃ©faut, l'accÃ¨s concerne les actions mÃ©tier: un agent doit Ãªtre
-// assignÃ© au ticket. La seule exception est ticket:rejoindre, qui peut
-// autoriser temporairement un agent Ã  rejoindre un ticket non assignÃ© afin
+// ── Contrôle d'accès centralisé à un ticket ─────────────────────────────
+// Par défaut, l'accès concerne les actions métier: un agent doit être
+// assigné au ticket. La seule exception est ticket:rejoindre, qui peut
+// autoriser temporairement un agent à rejoindre un ticket non assigné afin
 // de pouvoir le prendre en charge.
 async function verifierAccesTicket(ticketId, user, options = {}) {
   const { allowUnassignedAgent = false } = options;

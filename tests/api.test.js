@@ -56,11 +56,51 @@ describe('Auth', () => {
     expect(reponse.status).toBe(401);
   });
 
+  test('Inscription publique avec role admin → 422', async () => {
+    const reponse = await request(app).post('/api/auth/register').send({
+      nom: 'A', prenom: 'B', email: 'a@a.com', mot_de_passe: 'motdepasse123', role: 'admin',
+    });
+    expect(reponse.status).toBe(422);
+  });
+
   test('Token expiré → 401', async () => {
     const tokenExpire = jwt.sign({ id: 1, role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '-1s' });
     const reponse = await request(app).get('/api/auth/profil').set('Authorization', `Bearer ${tokenExpire}`);
     expect(reponse.status).toBe(401);
     expect(reponse.body.message).toMatch(/expiré/);
+  });
+
+  test('Inscription interne admin valide → 201', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 9, nom: 'Agent', prenom: 'Dupont', email: 'agent@test.sn', role: 'agent' }] });
+    const reponse = await request(app)
+      .post('/api/auth/register-interne')
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .send({ nom: 'Agent', prenom: 'Dupont', email: 'agent@test.sn', mot_de_passe: 'motdepasse123', role: 'agent' });
+    expect(reponse.status).toBe(201);
+  });
+
+  test('Inscription interne rôle invalide → 422', async () => {
+    const reponse = await request(app)
+      .post('/api/auth/register-interne')
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .send({ nom: 'A', prenom: 'B', email: 'a@a.com', mot_de_passe: 'motdepasse123', role: 'client' });
+    expect(reponse.status).toBe(422);
+  });
+
+  test('Profil valide → 200', async () => {
+    const reponse = await request(app).get('/api/auth/profil').set('Authorization', `Bearer ${tokenAdmin}`);
+    expect(reponse.status).toBe(200);
+    expect(reponse.body.role).toBe('admin');
+  });
+
+  test('Oubli mot de passe avec email invalide → 422', async () => {
+    const reponse = await request(app).post('/api/auth/mot-de-passe-oublie').send({ email: 'pas-un-email' });
+    expect(reponse.status).toBe(422);
+  });
+
+  test('Réinitialisation mot de passe champs manquants → 422', async () => {
+    const reponse = await request(app).post('/api/auth/reinitialiser-mot-de-passe').send({ token: '', nouveau_mot_de_passe: '123' });
+    expect(reponse.status).toBe(422);
   });
 });
 
@@ -92,6 +132,11 @@ describe('Clients', () => {
 
     const reponse = await request(app).get('/api/clients/1').set('Authorization', `Bearer ${tokenAdmin}`);
     expect(reponse.status).toBe(200);
+  });
+
+  test('Détail client avec ID invalide → 422', async () => {
+    const reponse = await request(app).get('/api/clients/abc').set('Authorization', `Bearer ${tokenAdmin}`);
+    expect(reponse.status).toBe(422);
   });
 
   test('404 sur ID inexistant', async () => {
@@ -142,6 +187,22 @@ describe('Forfaits', () => {
     expect(reponse.status).toBe(422);
   });
 
+  test('Créer un forfait avec rôle client → 403', async () => {
+    const reponse = await request(app)
+      .post('/api/forfaits')
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ nom: 'Test', quota_data_go: 5, quota_voix_min: 100, prix_mensuel_fcfa: 3000 });
+    expect(reponse.status).toBe(403);
+  });
+
+  test('Modifier un forfait avec body invalide → 422', async () => {
+    const reponse = await request(app)
+      .put('/api/forfaits/1')
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .send({ nom: '', quota_data_go: -1, quota_voix_min: 100, prix_mensuel_fcfa: 9000 });
+    expect(reponse.status).toBe(422);
+  });
+
   test('Supprimer forfait avec clients abonnés → 409', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ count: '2' }] }); 
     const reponse = await request(app).delete('/api/forfaits/1').set('Authorization', `Bearer ${tokenAdmin}`);
@@ -164,6 +225,41 @@ describe('Factures', () => {
       .post('/api/factures')
       .set('Authorization', `Bearer ${tokenAdmin}`)
       .send({ client_id: 1, periode: '2026-01', montant_fcfa: -500 });
+    expect(reponse.status).toBe(422);
+  });
+
+  test('Créer une facture avec body invalide → 422', async () => {
+    const reponse = await request(app)
+      .post('/api/factures')
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .send({ client_id: 'abc', periode: '2026-13', montant_fcfa: -100 });
+    expect(reponse.status).toBe(422);
+  });
+
+  test('Créer une facture sans être admin → 403', async () => {
+    const reponse = await request(app)
+      .post('/api/factures')
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ client_id: 1, periode: '2026-01', montant_fcfa: 5000 });
+    expect(reponse.status).toBe(403);
+  });
+
+  test('Supprimer facture avec ID invalide → 422', async () => {
+    const reponse = await request(app).delete('/api/factures/abc').set('Authorization', `Bearer ${tokenAdmin}`);
+    expect(reponse.status).toBe(422);
+  });
+
+  test('Supprimer facture introuvable → 404', async () => {
+    db.query.mockResolvedValueOnce({ rows: [] });
+    const reponse = await request(app).delete('/api/factures/999').set('Authorization', `Bearer ${tokenAdmin}`);
+    expect(reponse.status).toBe(404);
+  });
+
+  test('Changer le statut d\'une facture avec statut invalide → 422', async () => {
+    const reponse = await request(app)
+      .put('/api/factures/1/statut')
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .send({ statut: 'annule' });
     expect(reponse.status).toBe(422);
   });
 
@@ -435,6 +531,14 @@ describe('Factures complémentaire', () => {
     expect(reponse.status).toBe(200);
   });
 
+  test('Un client peut consulter sa propre facture → 200', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, client_id: 5 }] });
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] });
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] });
+    const reponse = await request(app).get('/api/factures/1').set('Authorization', `Bearer ${tokenClient}`);
+    expect(reponse.status).toBe(200);
+  });
+
   test('Détail facture inexistante → 404', async () => {
     db.query.mockResolvedValueOnce({ rows: [] });
     const reponse = await request(app).get('/api/factures/999').set('Authorization', `Bearer ${tokenAdmin}`);
@@ -523,6 +627,14 @@ describe('Tickets', () => {
     expect(reponse.status).toBe(403);
   });
 
+  test('Changer le statut d\'un ticket avec valeur invalide → 422', async () => {
+    const reponse = await request(app)
+      .patch('/api/tickets/1/statut')
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .send({ statut: 'annule' });
+    expect(reponse.status).toBe(422);
+  });
+
   test('Changer le statut d\'un ticket → 200', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ id: 1, agent_id: null, client_id: 5 }] }); // vérif accès (admin)
     db.query.mockResolvedValueOnce({ rows: [{ id: 1, statut: 'ferme' }] });
@@ -607,11 +719,23 @@ describe('Compléments couverture', () => {
     expect(reponse.status).toBe(404);
   });
 
+  test('GET /api/tickets/:id avec client non propriétaire → 403', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, client_id: 5 }] });
+    db.query.mockResolvedValueOnce({ rows: [{ id: 42 }] });
+    const reponse = await request(app).get('/api/tickets/1').set('Authorization', `Bearer ${tokenClient}`);
+    expect(reponse.status).toBe(403);
+  });
+
   test('GET /api/tickets (liste, admin) → 200', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ count: '1' }] });
     db.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
     const reponse = await request(app).get('/api/tickets').set('Authorization', `Bearer ${tokenAdmin}`);
     expect(reponse.status).toBe(200);
+  });
+
+  test('GET /api/stats sans être admin → 403', async () => {
+    const reponse = await request(app).get('/api/stats').set('Authorization', `Bearer ${tokenClient}`);
+    expect(reponse.status).toBe(403);
   });
 
   test('Ajouter un message à un ticket → 201', async () => {
@@ -623,6 +747,15 @@ describe('Compléments couverture', () => {
       .set('Authorization', `Bearer ${tokenClient}`)
       .send({ contenu: 'Bonjour' });
     expect(reponse.status).toBe(201);
+  });
+
+  test('Ajouter un message à un ticket introuvable → 404', async () => {
+    db.query.mockResolvedValueOnce({ rows: [] });
+    const reponse = await request(app)
+      .post('/api/tickets/1/messages')
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ contenu: 'Bonjour' });
+    expect(reponse.status).toBe(404);
   });
 
   test('Ajouter un message vide → 422', async () => {

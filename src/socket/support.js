@@ -23,7 +23,7 @@ async function verifierAccesSocket(socket, ticketId, options = {}) {
     return null;
   }
   if (!acces.autorise) {
-    socket.emit('erreur', { message: 'AccÃ¨s refusÃ© Ã  ce ticket' });
+    socket.emit('erreur', { message: 'Accès refusé à ce ticket' });
     return null;
   }
   return acces;
@@ -53,7 +53,7 @@ module.exports = function initSupport(io) {
     const user = socket.data.user;
     socket.join(`user:${user.id}`);
     if (user.role === 'agent') socket.join('agents');
-    logger.info(`Socket connectÃ© : utilisateur ${user.id} (${user.role})`);
+    logger.info(`Socket connecté : utilisateur ${user.id} (${user.role})`);
 
     socket.on('ticket:ouvrir', async ({ sujet } = {}) => {
       try {
@@ -64,14 +64,14 @@ module.exports = function initSupport(io) {
           return socket.emit('erreur', { message: 'Le sujet est requis' });
         }
 
-        // tickets.client_id rÃ©fÃ©rence clients(id), pas utilisateurs(id) :
-        // on doit d'abord retrouver le client liÃ© Ã  l'utilisateur connectÃ©.
+        // tickets.client_id référence clients(id), pas utilisateurs(id) :
+        // on doit d'abord retrouver le client lié à l'utilisateur connecté.
         const clientRes = await db.query(
           `SELECT id FROM clients WHERE utilisateur_id = $1`,
           [user.id]
         );
         if (clientRes.rows.length === 0) {
-          return socket.emit('erreur', { message: "Aucun profil client associÃ© Ã  cet utilisateur" });
+          return socket.emit('erreur', { message: "Aucun profil client associé à cet utilisateur" });
         }
         const clientId = clientRes.rows[0].id;
 
@@ -83,7 +83,7 @@ module.exports = function initSupport(io) {
         socket.join(`ticket:${ticket.id}`);
         io.to('agents').emit('ticket:nouveau', ticket);
       } catch (err) {
-        socket.emit('erreur', { message: 'Impossible de crÃ©er le ticket' });
+        socket.emit('erreur', { message: 'Impossible de créer le ticket' });
       }
     });
 
@@ -93,16 +93,16 @@ module.exports = function initSupport(io) {
           return socket.emit('erreur', { message: 'Seul un agent peut prendre en charge un ticket' });
         }
 
-        // Un agent peut prendre un ticket non assignÃ©; un ticket dÃ©jÃ  pris
-        // reste accessible uniquement Ã  l'agent qui le possÃ¨de ou Ã  l'admin.
+        // Un agent peut prendre un ticket non assigné; un ticket déjà pris
+        // reste accessible uniquement à l'agent qui le possède ou à l'admin.
         const acces = await verifierAccesSocket(socket, ticketId, { allowUnassignedAgent: true });
         if (!acces) return;
         if (acces.ticket.statut === 'ferme') {
-          return socket.emit('erreur', { message: 'Un ticket fermÃ© ne peut pas Ãªtre assignÃ©' });
+          return socket.emit('erreur', { message: 'Un ticket fermé ne peut pas être assigné' });
         }
 
-        // Condition atomique pour Ã©viter qu deux agents ne prennent le mÃªme
-        // ticket entre la vÃ©rification et l'UPDATE.
+        // Condition atomique pour éviter qu deux agents ne prennent le même
+        // ticket entre la vérification et l'UPDATE.
         const resultat = await db.query(
           `UPDATE tickets
            SET agent_id = $1, statut = 'en_cours'
@@ -111,7 +111,7 @@ module.exports = function initSupport(io) {
           [user.id, ticketId]
         );
         if (!resultat.rows[0]) {
-          return socket.emit('erreur', { message: 'Ce ticket est dÃ©jÃ  pris en charge par un autre agent' });
+          return socket.emit('erreur', { message: 'Ce ticket est déjà pris en charge par un autre agent' });
         }
 
         const ticket = resultat.rows[0];
@@ -132,17 +132,17 @@ module.exports = function initSupport(io) {
       }
     });
 
-    // Rejoindre la room d'un ticket en lecture (client propriÃ©taire, agent dÃ©jÃ 
-    // assignÃ©, ou admin) â€” n'attribue PAS le ticket, contrairement Ã 
-    // "ticket:assigner". NÃ©cessaire pour recevoir messages/appels en temps rÃ©el
-    // sans que le simple fait d'ouvrir un ticket ne le vole Ã  un autre agent.
+    // Rejoindre la room d'un ticket en lecture (client propriétaire, agent déjà 
+    // assigné, ou admin) — n'attribue PAS le ticket, contrairement à 
+    // "ticket:assigner". Nécessaire pour recevoir messages/appels en temps réel
+    // sans que le simple fait d'ouvrir un ticket ne le vole à un autre agent.
     socket.on('ticket:rejoindre', async ({ ticketId } = {}) => {
       try {
         const acces = await verifierAccesSocket(socket, ticketId, { allowUnassignedAgent: true });
         if (!acces) return;
         socket.join(`ticket:${ticketId}`);
       } catch (err) {
-        logger.error(`Erreur accÃ¨s room ticket ${ticketId}: ${err.message}`);
+        logger.error(`Erreur accès room ticket ${ticketId}: ${err.message}`);
         socket.emit('erreur', { message: 'Impossible de rejoindre ce ticket' });
       }
     });
@@ -150,12 +150,12 @@ module.exports = function initSupport(io) {
     socket.on('ticket:fermer', async ({ ticketId } = {}) => {
       try {
         if (user.role !== 'agent' && user.role !== 'admin') {
-          return socket.emit('erreur', { message: 'Seul lâ€™agent assignÃ© ou un admin peut fermer le ticket' });
+          return socket.emit('erreur', { message: "Seul l'agent assigné ou un admin peut fermer le ticket" });
         }
         const acces = await verifierAccesSocket(socket, ticketId);
         if (!acces) return;
         if (acces.ticket.statut !== 'en_cours') {
-          return socket.emit('erreur', { message: 'Seul un ticket en cours peut Ãªtre fermÃ©' });
+          return socket.emit('erreur', { message: 'Seul un ticket en cours peut être fermé' });
         }
 
         const resultat = await db.query(
@@ -166,7 +166,7 @@ module.exports = function initSupport(io) {
           [ticketId]
         );
         if (!resultat.rows[0]) {
-          return socket.emit('erreur', { message: 'Le ticket ne peut plus Ãªtre fermÃ©' });
+          return socket.emit('erreur', { message: 'Le ticket ne peut plus être fermé' });
         }
         io.to(`ticket:${ticketId}`).emit('ticket:ferme', resultat.rows[0]);
       } catch (err) {
@@ -180,7 +180,7 @@ module.exports = function initSupport(io) {
         const acces = await verifierAccesSocket(socket, ticketId);
         if (!acces) return;
         if (statutTicketFerme(acces)) {
-          return socket.emit('erreur', { message: 'Ce ticket est fermÃ©' });
+          return socket.emit('erreur', { message: 'Ce ticket est fermé' });
         }
         if (type !== 'texte' || typeof contenu !== 'string' || !contenu.trim()) {
           return socket.emit('erreur', { message: 'Message texte invalide' });
@@ -195,7 +195,7 @@ module.exports = function initSupport(io) {
         io.to(`ticket:${ticketId}`).emit('message:nouveau', resultat.rows[0]);
       } catch (err) {
         logger.error(`Erreur message ticket ${ticketId}: ${err.message}`);
-        socket.emit('erreur', { message: "Ã‰chec de l'envoi du message" });
+        socket.emit('erreur', { message: "Échec de l'envoi du message" });
       }
     });
 
@@ -225,7 +225,7 @@ module.exports = function initSupport(io) {
           statut: 'lu',
         });
       } catch (err) {
-        logger.error(`Erreur accusÃ© message ${messageId}: ${err.message}`);
+        logger.error(`Erreur accusé message ${messageId}: ${err.message}`);
         socket.emit('erreur', { message: 'Impossible de marquer le message comme lu' });
       }
     });
@@ -255,10 +255,10 @@ module.exports = function initSupport(io) {
         const acces = await verifierAccesSocket(socket, ticketId);
         if (!acces) return;
         if (statutTicketFerme(acces)) {
-          return socket.emit('erreur', { message: 'Ce ticket est fermÃ©' });
+          return socket.emit('erreur', { message: 'Ce ticket est fermé' });
         }
         if (!messageId || typeof emoji !== 'string' || !emoji.trim() || [...emoji].length > 10) {
-          return socket.emit('erreur', { message: 'RÃ©action invalide' });
+          return socket.emit('erreur', { message: 'Réaction invalide' });
         }
 
         const messageRes = await db.query(
@@ -296,13 +296,13 @@ module.exports = function initSupport(io) {
           reactions: compteur.rows,
         });
       } catch (err) {
-        logger.error(`Erreur rÃ©action message ${messageId}: ${err.message}`);
-        socket.emit('erreur', { message: 'Impossible de modifier la rÃ©action' });
+        logger.error(`Erreur réaction message ${messageId}: ${err.message}`);
+        socket.emit('erreur', { message: 'Impossible de modifier la réaction' });
       }
     });
 
     socket.on('disconnect', () => {
-      logger.info(`Socket dÃ©connectÃ© : utilisateur ${user.id}`);
+      logger.info(`Socket déconnecté : utilisateur ${user.id}`);
     });
   });
 };

@@ -6,6 +6,43 @@ const facturesController = require('../controllers/facturesController');
 
 const router = express.Router();
 
+/**
+ * @openapi
+ * /api/factures:
+ *   get:
+ *     summary: Liste paginée des factures
+ *     description: Un client ne voit que ses propres factures, quel que soit le ?client_id= demandé.
+ *     tags: [Factures]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: client_id
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: statut
+ *         schema: { type: string, enum: [payee, impayee, en_retard] }
+ *       - in: query
+ *         name: periode
+ *         schema: { type: string, example: '2026-08' }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: limite
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Liste paginée
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Facture' }
+ *                 pagination: { $ref: '#/components/schemas/Pagination' }
+ */
 router.get('/', verifierJWT, async (req, res, next) => {
   try {
     const { client_id, statut, periode, page, limite } = req.query;
@@ -25,6 +62,27 @@ router.get('/', verifierJWT, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+/**
+ * @openapi
+ * /api/factures/{id}:
+ *   get:
+ *     summary: Détail d'une facture + informations client
+ *     tags: [Factures]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Détail de la facture
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/Facture' } } }
+ *       403:
+ *         description: Accès refusé — ce n'est pas votre facture
+ *       404:
+ *         description: Facture introuvable
+ */
 router.get('/:id', verifierJWT, async (req, res, next) => {
   try {
     const facture = await facturesController.detail(req.params.id);
@@ -43,6 +101,32 @@ router.get('/:id', verifierJWT, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+/**
+ * @openapi
+ * /api/factures:
+ *   post:
+ *     summary: Créer une facture manuellement (admin)
+ *     description: Génère automatiquement la référence (FAC-YYYYMM-XXXX). Sert aux cas exceptionnels — la facturation normale est mensuelle et automatique.
+ *     tags: [Factures]
+ *     security: [{ BearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [client_id, periode, montant_fcfa]
+ *             properties:
+ *               client_id: { type: integer, example: 5 }
+ *               periode: { type: string, example: '2026-08' }
+ *               montant_fcfa: { type: integer, example: 8000 }
+ *     responses:
+ *       201:
+ *         description: Facture créée
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/Facture' } } }
+ *       422:
+ *         description: Données invalides (montant négatif, format période, client_id inexistant)
+ */
 router.post('/',
   verifierJWT, garderRole('admin'),
   [
@@ -107,6 +191,36 @@ router.delete('/:id',
   }
 );
 
+/**
+ * @openapi
+ * /api/factures/{id}/statut:
+ *   put:
+ *     summary: Mettre à jour le statut d'une facture (admin)
+ *     tags: [Factures]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [statut]
+ *             properties:
+ *               statut: { type: string, enum: [payee, impayee, en_retard] }
+ *     responses:
+ *       200:
+ *         description: Statut mis à jour
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/Facture' } } }
+ *       404:
+ *         description: Facture introuvable
+ *       422:
+ *         description: Statut invalide
+ */
 router.put('/:id/statut',
   verifierJWT, garderRole('admin'),
   [body('statut').isIn(['payee', 'impayee', 'en_retard'])],

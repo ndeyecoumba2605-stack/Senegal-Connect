@@ -78,6 +78,25 @@ router.get('/', verifierJWT, async (req, res, next) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/clients/{id}:
+ *   get:
+ *     summary: Détail d'un client (accepte clients.id ou utilisateurs.id)
+ *     tags: [Clients]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Détail du client
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/Client' } } }
+ *       404:
+ *         description: Client introuvable
+ */
 // 🟢 ROUTE DÉTAIL D'UN CLIENT (GET /api/clients/:id)
 router.get('/:id', verifierJWT, param('id').isInt(), validerRequete, async (req, res, next) => {
   try {
@@ -112,15 +131,114 @@ router.get('/:id', verifierJWT, param('id').isInt(), validerRequete, async (req,
   }
 });
 
+/**
+ * @openapi
+ * /api/clients:
+ *   post:
+ *     summary: Créer un client (admin)
+ *     tags: [Clients]
+ *     security: [{ BearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [nom, prenom, email, msisdn, forfait_id]
+ *             properties:
+ *               nom: { type: string, example: 'Ndiaye' }
+ *               prenom: { type: string, example: 'Awa' }
+ *               email: { type: string, example: 'awa.ndiaye@example.com' }
+ *               msisdn: { type: string, example: '+221771234567' }
+ *               forfait_id: { type: integer, example: 2 }
+ *     responses:
+ *       201:
+ *         description: Client créé
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/Client' } } }
+ *       403:
+ *         description: Réservé à l'admin
+ *       409:
+ *         description: MSISDN ou email déjà utilisé
+ *       422:
+ *         description: Format MSISDN invalide, forfait inexistant...
+ */
 // 🟢 CRÉATION D'UN CLIENT
 // clientsController.creer(req, res, next) gère déjà la réponse et les erreurs
 // (il appelle next(err) lui-même) : on le branche directement comme middleware,
 // on ne l'appelle pas avec des arguments positionnels.
 router.post('/', verifierJWT, garderRole('admin'), validationClient, validerRequete, clientsController.creer);
 
+/**
+ * @openapi
+ * /api/clients/{id}:
+ *   put:
+ *     summary: Modifier un client (admin)
+ *     tags: [Clients]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [nom, prenom, email, msisdn, forfait_id]
+ *             properties:
+ *               nom: { type: string }
+ *               prenom: { type: string }
+ *               email: { type: string }
+ *               msisdn: { type: string }
+ *               forfait_id: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Client modifié
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/Client' } } }
+ *       404:
+ *         description: Client introuvable
+ *       422:
+ *         description: Données invalides
+ */
 // 🟢 MODIFICATION D'UN CLIENT
 router.put('/:id', verifierJWT, garderRole('admin'), validationClient, validerRequete, clientsController.modifier);
 
+/**
+ * @openapi
+ * /api/clients/{id}/statut:
+ *   patch:
+ *     summary: Changer le statut d'un client
+ *     description: >
+ *       Un admin peut définir n'importe quel statut sur n'importe quel client.
+ *       Un client ne peut que suspendre ou réactiver SON PROPRE compte
+ *       (jamais se résilier lui-même, jamais toucher un autre compte).
+ *     tags: [Clients]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [statut]
+ *             properties:
+ *               statut: { type: string, enum: [actif, suspendu, resilie] }
+ *     responses:
+ *       200:
+ *         description: Statut mis à jour
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/Client' } } }
+ *       403:
+ *         description: Un client ne peut que suspendre/réactiver son propre compte
+ *       409:
+ *         description: Résiliation impossible — factures impayées
+ */
 // 🟢 CHANGEMENT DE STATUT
 router.patch(
   '/:id/statut',
@@ -150,12 +268,42 @@ router.patch(
   clientsController.changerStatut
 );
 
+/**
+ * @openapi
+ * /api/clients/me:
+ *   delete:
+ *     summary: Supprimer son propre compte (self-service, client connecté)
+ *     description: Refusé (409) si des factures impayées existent. Supprime le compte utilisateur entier (cascade sur la fiche client, tickets, etc.).
+ *     tags: [Clients]
+ *     security: [{ BearerAuth: [] }]
+ *     responses:
+ *       204: { description: Compte supprimé }
+ *       409: { description: Factures impayées — suppression refusée }
+ */
 // 🟢 SUPPRESSION DE SON PROPRE COMPTE (self-service, client connecté)
 // IMPORTANT : déclarée AVANT "/:id" pour que "DELETE /me" ne soit pas
 // interprété comme "DELETE /:id" avec id="me" (Express matche dans l'ordre
 // de déclaration), ce qui l'aurait fait tomber sur la route admin-only.
 router.delete('/me', verifierJWT, clientsController.supprimerMonCompte);
 
+/**
+ * @openapi
+ * /api/clients/{id}:
+ *   delete:
+ *     summary: Supprimer un client (admin)
+ *     description: Refusé (409) si le client a des factures impayées.
+ *     tags: [Clients]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       204: { description: Client supprimé }
+ *       403: { description: Réservé à l'admin }
+ *       409: { description: Factures impayées — suppression refusée }
+ */
 // 🟢 SUPPRESSION D'UN CLIENT (admin)
 router.delete('/:id', verifierJWT, garderRole('admin'), clientsController.supprimer);
 

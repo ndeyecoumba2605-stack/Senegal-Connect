@@ -145,8 +145,8 @@ function connecterSocket() {
     }
   });
 
-  socket.on('message:statut', ({ messageId, statut, utilisateurId }) => {
-    mettreAJourStatutMessage(messageId, statut, utilisateurId);
+  socket.on('message:statut', ({ messageId, statut }) => {
+    mettreAJourStatutMessage(messageId, statut);
   });
 
   socket.on('frappe', ({ nom }) => afficherIndicateurFrappe(nom));
@@ -160,7 +160,6 @@ function connecterSocket() {
   socket.on('appel:refuse', () => window.gererAppelRefuse && window.gererAppelRefuse());
   socket.on('appel:termine', () => window.gererAppelTermine && window.gererAppelTermine());
   socket.on('appel:reaction', (donnees) => window.gererAppelReaction && window.gererAppelReaction(donnees));
-  socket.on('appel:controle', (donnees) => window.gererControleDistant && window.gererControleDistant(donnees));
 }
 
 // =========================================================================
@@ -527,8 +526,18 @@ async function ouvrirTicket(ticket) {
     const { data } = await reponse.json();
     if (Array.isArray(data)) {
       data.forEach(afficherMessage);
-      // La marque 'lu' est gérée automatiquement côté serveur lors de
-      // l'événement 'ticket:rejoindre' (le client a déjà émis cet event).
+      const userActuel = utilisateur();
+      if (socket && socket.connected && userActuel) {
+        data
+          .filter(msg => String(msg.expediteur_id) !== String(userActuel.id) && msg.id)
+          .forEach((msg) => {
+            socket.emit('message:lu', {
+              messageId: msg.id,
+              expediteurId: msg.expediteur_id,
+              ticketId: ticket.id,
+            });
+          });
+      }
     }
   } catch (e) {
     console.error('Erreur chargement messages:', e);
@@ -717,18 +726,10 @@ function afficherMessage(message) {
     contenuHtml = `<a href="${message.fichier_url || message.contenu}" target="_blank" style="color: inherit; text-decoration: underline;">📄 ${message.fichier_nom || 'Télécharger le document'}</a>`;
   }
 
-  const statutTexte = estMoi ? 'pending' : '';
-  // Si le serveur a indiqué que le message a déjà été lu par le destinataire,
-  // afficher directement la double coche.
-  // Determine if this message has been read by any other participant
-  let lusPar = message.lus_par || message.lusPar || message.lu_par_destinataire;
-  if (typeof lusPar === 'string') {
-    try { lusPar = JSON.parse(lusPar); } catch (e) { /* ignore */ }
-  }
-  const dejaLuParDest = estMoi && Array.isArray(lusPar) && lusPar.some(id => String(id) !== String(userActuel?.id));
+  const statutTexte = estMoi ? '✓' : '';
   div.innerHTML = `
     ${contenuHtml}
-    ${estMoi ? (dejaLuParDest ? `<span class="accuse read" data-lu="true" style="float: right; margin-left: 8px; margin-top: 4px;"><i class="fa-solid fa-check-double"></i></span>` : `<span class="accuse pending" data-lu="false" style="float: right; margin-left: 8px; margin-top: 4px;"><i class="fa-solid fa-check"></i></span>`) : ''}
+    ${statutTexte ? `<span class="accuse" data-lu="false" style="font-size: 0.65rem; opacity: 0.8; float: right; margin-left: 8px; margin-top: 4px;">${statutTexte}</span>` : ''}
     <div class="reaction-toolbar">
       <button type="button" class="btn-reaction-message" title="Réagir à ce message">😊</button>
       <div class="reaction-picker cache">
@@ -756,28 +757,24 @@ function accuserReceptionSiVisible(message) {
   }
 }
 
-function mettreAJourStatutMessage(messageId, statut, lecteurId) {
+function mettreAJourStatutMessage(messageId, statut) {
   const bulle = document.querySelector(`[data-message-id="${messageId}"]`);
   if (!bulle) return;
+
   let accuse = bulle.querySelector('.accuse');
   if (!accuse) {
     accuse = document.createElement('span');
     accuse.className = 'accuse';
-    accuse.dataset.lu = 'false';
+    accuse.style.cssText = 'font-size: 0.65rem; opacity: 0.8; float: right; margin-left: 8px; margin-top: 4px;';
     bulle.appendChild(accuse);
   }
 
-  // Applique l'état visuel : 'pending' -> simple coche grise, 'lu' -> double coche bleue
   if (statut === 'lu') {
-    accuse.classList.remove('pending');
-    accuse.classList.add('read');
+    accuse.textContent = '✓✓';
     accuse.dataset.lu = 'true';
-    accuse.innerHTML = '<i class="fa-solid fa-check-double"></i>';
   } else {
-    accuse.classList.remove('read');
-    accuse.classList.add('pending');
+    accuse.textContent = '✓';
     accuse.dataset.lu = 'false';
-    accuse.innerHTML = '<i class="fa-solid fa-check"></i>';
   }
 }
 

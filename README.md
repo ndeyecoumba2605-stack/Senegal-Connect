@@ -99,4 +99,13 @@ Voir `.env.example` pour la liste complète et documentée : `DB_HOST`, `DB_PORT
 
 ## 📸 Captures d'écran
 
-_A faire après_
+<img width="1918" height="935" alt="image" src="https://github.com/user-attachments/assets/0b988496-e8b6-456c-92ba-2d7a2aa61281" />
+
+<img width="1919" height="829" alt="image" src="https://github.com/user-attachments/assets/f6c4b878-88c3-4dc7-891f-8bc7477e81a3" />
+
+<img width="1919" height="651" alt="image" src="https://github.com/user-attachments/assets/3409538e-fad0-4815-94f9-9eac8a1b3d9d" />
+
+<img width="1919" height="814" alt="image" src="https://github.com/user-attachments/assets/22bb5668-f832-493a-aed6-dd1ccc60f627" />
+
+
+

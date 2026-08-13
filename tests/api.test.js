@@ -974,3 +974,490 @@ describe('Monitoring', () => {
     expect(Date.now() - debut).toBeLessThan(200);
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════
+// SOCKET.IO — support.js (chat) et appels.js (WebRTC)
+// ═════════════════════════════════════════════════════════════════════
+// Tests d'intégration réels : vrai serveur Socket.IO (http.Server réel sur
+// un port aléatoire) + vrais clients socket.io-client, BDD mockée comme
+// pour les tests REST ci-dessus. On ne mocke PAS socket.io lui-même : ça
+// garantit que le vrai code des handlers s'exécute (auth JWT, rooms,
+// diffusion), ce qui est justement ce qui manquait à la couverture.
+describe('Sockets — support.js et appels.js', () => {
+  const { server } = require('../src/server');
+  const { io: ioClient } = require('socket.io-client');
+
+  let port;
+  let clientSockets = [];
+
+  beforeAll((done) => {
+    server.listen(0, () => {
+      port = server.address().port;
+      done();
+    });
+  });
+
+  afterAll((done) => {
+    // close any remaining client sockets first
+    try {
+      clientSockets.forEach(s => s && s.close && s.close());
+    } catch (e) {
+      /* ignore */
+    }
+    server.close(done);
+  });
+
+  function connecter(payload) {
+    const token = jwt.sign(payload, process.env.JWT_SECRET);
+    const socket = ioClient(`http://localhost:${port}`, {
+      path: '/socket.io',
+      transports: ['websocket'],
+      reconnection: false,
+      forceNew: true,
+      auth: { token },
+    });
+
+    clientSockets.push(socket);
+    return socket;
+  }
+  
+
+  function attendreEvenement(socket, evenement, timeoutMs = 2000) {
+    return new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error(`Timeout en attente de "${evenement}"`)), timeoutMs);
+      socket.once(evenement, (payload) => {
+        clearTimeout(t);
+        resolve(payload);
+      });
+    });
+  }
+
+  function fermer(...sockets) {
+    sockets.forEach((s) => s && s.close());
+  }
+
+  test('Connexion avec token valide → connect', (done) => {
+    db.query.mockResolvedValue({ rows: [] });
+    const socket = connecter({ id: 1, role: 'client', nom: 'Client' });
+    socket.on('connect', () => {
+      expect(socket.connected).toBe(true);
+      fermer(socket);
+      done();
+    });
+    socket.on('connect_error', (err) => done(err));
+  });
+
+  test('Connexion avec token invalide → connect_error', (done) => {
+    const socket = ioClient(`http://localhost:${port}`, {
+      path: '/socket.io',
+      transports: ['websocket'],
+      reconnection: false,
+      forceNew: true,
+      auth: { token: 'token-invalide' },
+    });
+    socket.on('connect_error', (err) => {
+      expect(err.message).toBe('Token invalide');
+      fermer(socket);
+      done();
+    });
+    socket.on('connect', () => { fermer(socket); done(new Error('ne devrait pas se connecter')); });
+  });
+
+  test('ticket:ouvrir — un client crée un ticket, les agents sont notifiés', (done) => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // SELECT clients WHERE utilisateur_id
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, client_id: 5, sujet: 'Panne fibre', statut: 'ouvert' }] }); // INSERT tickets
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+
+    Promise.all([
+      attendreEvenement(agent, 'connect'),
+      attendreEvenement(client, 'connect'),
+    ]).then(() => {
+      agent.on('ticket:nouveau', (ticket) => {
+        expect(ticket.sujet).toBe('Panne fibre');
+        fermer(agent, client);
+        done();
+      });
+      client.emit('ticket:ouvrir', { sujet: 'Panne fibre' });
+    }).catch(done);
+  });
+
+  test('ticket:ouvrir — un agent ne peut pas ouvrir de ticket → erreur', (done) => {
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    agent.on('connect', () => {
+      agent.on('erreur', ({ message }) => {
+        expect(message).toMatch(/client/);
+        fermer(agent);
+        done();
+      });
+      agent.emit('ticket:ouvrir', { sujet: 'Test' });
+    });
+  });
+
+  test('ticket:ouvrir — sujet vide → erreur', (done) => {
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+    client.on('connect', () => {
+      client.on('erreur', ({ message }) => {
+        expect(message).toMatch(/sujet/i);
+        fermer(client);
+        done();
+      });
+      client.emit('ticket:ouvrir', { sujet: '   ' });
+    });
+  });
+
+  test('ticket:assigner — un agent prend en charge un ticket libre', (done) => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: null, statut: 'ouvert', client_id: 5 }] }); // verifierAccesTicket
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] }); // UPDATE atomique
+    db.query.mockResolvedValueOnce({ rows: [{ utilisateur_id: 2 }] }); // SELECT utilisateur_id du client
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    agent.on('connect', () => {
+      agent.on('ticket:pris', ({ id, agent_id }) => {
+        expect(id).toBe(10);
+        expect(agent_id).toBe(3);
+        fermer(agent);
+        done();
+      });
+      agent.emit('ticket:assigner', { ticketId: 10 });
+    });
+  });
+
+  test('ticket:assigner — déjà pris par un autre agent → erreur', (done) => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: null, statut: 'ouvert', client_id: 5 }] });
+    db.query.mockResolvedValueOnce({ rows: [] }); // UPDATE atomique ne matche rien (déjà pris entre-temps)
+
+    const agent = connecter({ id: 4, role: 'agent', nom: 'Agent2' });
+    agent.on('connect', () => {
+      agent.on('erreur', ({ message }) => {
+        expect(message).toMatch(/déjà pris en charge/);
+        fermer(agent);
+        done();
+      });
+      agent.emit('ticket:assigner', { ticketId: 10 });
+    });
+  });
+
+  test('ticket:assigner — un client ne peut pas assigner → erreur', (done) => {
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+    client.on('connect', () => {
+      client.on('erreur', ({ message }) => {
+        expect(message).toMatch(/agent/);
+        fermer(client);
+        done();
+      });
+      client.emit('ticket:assigner', { ticketId: 10 });
+    });
+  });
+
+  test('ticket:rejoindre — accès autorisé rejoint la room sans erreur', (done) => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: null, statut: 'ouvert', client_id: 5 }] }); // verifierAccesTicket
+    db.query.mockResolvedValueOnce({ rows: [] }); // INSERT messages_statut (marquage lu), aucun message à marquer
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    agent.on('connect', () => {
+      let recuErreur = false;
+      agent.on('erreur', () => { recuErreur = true; });
+      agent.emit('ticket:rejoindre', { ticketId: 10 });
+      setTimeout(() => {
+        expect(recuErreur).toBe(false);
+        fermer(agent);
+        done();
+      }, 300);
+    });
+  });
+
+  test('message:envoyer — message diffusé dans la room du ticket', (done) => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] }); // verifierAccesTicket (admin/agent)
+    db.query.mockResolvedValueOnce({ rows: [{ id: 99, ticket_id: 10, contenu: 'Bonjour', expediteur_id: 3 }] }); // INSERT messages
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+
+    Promise.all([attendreEvenement(agent, 'connect'), attendreEvenement(client, 'connect')]).then(() => {
+      agent.emit('ticket:rejoindre', { ticketId: 10 });
+      // Deuxième appel mocké pour le SELECT interne à ticket:rejoindre (marquage lu)
+      db.query.mockResolvedValueOnce({ rows: [] });
+
+      setTimeout(() => {
+        db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] });
+        db.query.mockResolvedValueOnce({ rows: [{ id: 100, ticket_id: 10, contenu: 'Bonjour', expediteur_id: 3 }] });
+
+        agent.on('message:nouveau', (message) => {
+          expect(message.contenu).toBe('Bonjour');
+          fermer(agent, client);
+          done();
+        });
+        agent.emit('message:envoyer', { ticketId: 10, contenu: 'Bonjour' });
+      }, 200);
+    }).catch(done);
+  });
+
+  test('message:envoyer — contenu vide → erreur', (done) => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] });
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    agent.on('connect', () => {
+      agent.on('erreur', ({ message }) => {
+        expect(message).toMatch(/invalide/i);
+        fermer(agent);
+        done();
+      });
+      agent.emit('message:envoyer', { ticketId: 10, contenu: '   ' });
+    });
+  });
+
+  test('message:lu — accuse de réception envoyé à l\'expéditeur', (done) => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] }); // accès
+    db.query.mockResolvedValueOnce({ rows: [{ expediteur_id: 3 }] }); // SELECT message
+    db.query.mockResolvedValueOnce({ rows: [] }); // INSERT messages_statut
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    agent.on('connect', () => {
+      agent.on('message:statut', ({ messageId, statut }) => {
+        expect(messageId).toBe(50);
+        expect(statut).toBe('lu');
+        fermer(agent);
+        done();
+      });
+      agent.emit('message:lu', { messageId: 50, ticketId: 10 });
+    });
+  });
+
+  test('frappe — relayé aux autres participants de la room', (done) => {
+    // Le client rejoint la room du ticket : verifierAccesTicket en rôle
+    // "client" fait 2 requêtes (ticket + résolution clients.id), puis
+    // l'INSERT...SELECT de marquage "lu" en fait une 3e (rows vides = aucun
+    // message à marquer, on évite ainsi la branche conditionnelle interne).
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] });
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] });
+    db.query.mockResolvedValueOnce({ rows: [] });
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+
+    Promise.all([attendreEvenement(agent, 'connect'), attendreEvenement(client, 'connect')]).then(() => {
+      client.emit('ticket:rejoindre', { ticketId: 10 });
+
+      setTimeout(() => {
+        // L'agent envoie l'indicateur de frappe : verifierAccesSocket en
+        // rôle "agent" ne fait qu'1 seule requête.
+        db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] });
+
+        client.on('frappe', ({ nom }) => {
+          expect(nom).toBeDefined();
+          fermer(agent, client);
+          done();
+        });
+        agent.emit('frappe', { ticketId: 10 });
+      }, 300);
+    }).catch(done);
+  });
+
+  test('reaction:toggle — ajoute une réaction et diffuse le compteur', (done) => {
+    // ⚠️ CORRIGÉ : io.to(`ticket:${ticketId}`).emit(...) ne touche que les
+    // sockets déjà membres de cette room. L'agent qui émet reaction:toggle
+    // ne l'avait jamais rejointe → il n'aurait jamais pu recevoir sa propre
+    // diffusion, d'où le timeout. On le fait d'abord rejoindre via
+    // "ticket:rejoindre" (rôle agent : 1 requête d'accès + 1 requête de
+    // marquage-lu, avant les 5 requêtes propres à reaction:toggle).
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] }); // accès pour rejoindre
+    db.query.mockResolvedValueOnce({ rows: [] }); // marquage lu (aucun message)
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    attendreEvenement(agent, 'connect').then(() => {
+      agent.emit('ticket:rejoindre', { ticketId: 10 });
+
+      setTimeout(() => {
+        db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] }); // accès
+        db.query.mockResolvedValueOnce({ rows: [{ id: 99 }] }); // SELECT message existe
+        db.query.mockResolvedValueOnce({ rows: [] }); // SELECT réaction existante (aucune)
+        db.query.mockResolvedValueOnce({ rows: [] }); // INSERT reaction
+        db.query.mockResolvedValueOnce({ rows: [{ emoji: '👍', count: 1 }] }); // SELECT compteur
+
+        agent.on('reaction:mise_a_jour', ({ messageId, reactions }) => {
+          try {
+            expect(messageId).toBe(99);
+            expect(reactions[0].emoji).toBe('👍');
+            fermer(agent);
+            done();
+          } catch (e) { done(e); }
+        });
+        agent.emit('reaction:toggle', { messageId: 99, emoji: '👍', ticketId: 10 });
+      }, 150);
+    }).catch(done);
+  });
+
+  test('ticket:fermer — un agent ferme un ticket en_cours', (done) => {
+    // ⚠️ CORRIGÉ : même cause que le test précédent — io.to(`ticket:${id}`)
+    // ne peut pas atteindre un socket qui n'a jamais rejoint cette room.
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] }); // accès pour rejoindre
+    db.query.mockResolvedValueOnce({ rows: [] }); // marquage lu (aucun message)
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    attendreEvenement(agent, 'connect').then(() => {
+      agent.emit('ticket:rejoindre', { ticketId: 10 });
+
+      setTimeout(() => {
+        db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] }); // accès
+        db.query.mockResolvedValueOnce({ rows: [{ id: 10, statut: 'ferme' }] }); // UPDATE
+
+        agent.on('ticket:ferme', (ticket) => {
+          try {
+            expect(ticket.statut).toBe('ferme');
+            fermer(agent);
+            done();
+          } catch (e) { done(e); }
+        });
+        agent.emit('ticket:fermer', { ticketId: 10 });
+      }, 150);
+    }).catch(done);
+  });
+
+  test('ticket:fermer — un client ne peut pas fermer → erreur', (done) => {
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+    client.on('connect', () => {
+      client.on('erreur', ({ message }) => {
+        expect(message).toMatch(/agent/i);
+        fermer(client);
+        done();
+      });
+      client.emit('ticket:fermer', { ticketId: 10 });
+    });
+  });
+
+  // ── appels.js ──────────────────────────────────────────────────────
+  test('appel:initier — un client appelle l\'agent assigné → appel:entrant reçu', (done) => {
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 10, statut: 'en_cours', agent_id: 3, client_utilisateur_id: 2 }],
+    });
+    db.query.mockResolvedValueOnce({ rows: [{ id: 77, ticket_id: 10 }] }); // INSERT appels
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+
+    Promise.all([attendreEvenement(agent, 'connect'), attendreEvenement(client, 'connect')]).then(() => {
+      agent.on('appel:entrant', ({ appelId, type }) => {
+        expect(appelId).toBe(77);
+        expect(type).toBe('audio');
+        fermer(agent, client);
+        done();
+      });
+      client.emit('appel:initier', { ticketId: 10, destinataireId: 3, type: 'audio', peerId: 'abc' });
+    }).catch(done);
+  });
+
+  test('appel:initier — ticket pas en_cours → erreur', (done) => {
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 10, statut: 'ouvert', agent_id: null, client_utilisateur_id: 2 }],
+    });
+
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+    client.on('connect', () => {
+      client.on('erreur', ({ message }) => {
+        expect(message).toMatch(/en_cours/);
+        fermer(client);
+        done();
+      });
+      client.emit('appel:initier', { ticketId: 10, destinataireId: 3, type: 'audio', peerId: 'x' });
+    });
+  });
+
+  test('appel:accepter — le destinataire accepte → appel:accepte envoyé à l\'initiateur', (done) => {
+    db.query.mockResolvedValueOnce({ rows: [{ destinataire_id: 3, ticket_id: 10 }] });
+    db.query.mockResolvedValueOnce({ rows: [] }); // UPDATE
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+
+    Promise.all([attendreEvenement(agent, 'connect'), attendreEvenement(client, 'connect')]).then(() => {
+      client.on('appel:accepte', ({ appelId, peerId }) => {
+        expect(appelId).toBe(77);
+        expect(peerId).toBe('peer-agent');
+        fermer(agent, client);
+        done();
+      });
+      agent.emit('appel:accepter', { appelId: 77, initiateurId: 2, peerId: 'peer-agent' });
+    }).catch(done);
+  });
+
+  test('appel:refuser — refus notifié à l\'initiateur', (done) => {
+    db.query.mockResolvedValueOnce({ rows: [{ destinataire_id: 3, ticket_id: 10 }] });
+    db.query.mockResolvedValueOnce({ rows: [] });
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+
+    Promise.all([attendreEvenement(agent, 'connect'), attendreEvenement(client, 'connect')]).then(() => {
+      client.on('appel:refuse', ({ appelId }) => {
+        expect(appelId).toBe(77);
+        fermer(agent, client);
+        done();
+      });
+      agent.emit('appel:refuser', { appelId: 77, initiateurId: 2 });
+    }).catch(done);
+  });
+
+  test('appel:terminer — les deux parties sont notifiées + arrêt', (done) => {
+    db.query.mockResolvedValueOnce({ rows: [] }); // UPDATE appels
+
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+
+    Promise.all([attendreEvenement(agent, 'connect'), attendreEvenement(client, 'connect')]).then(() => {
+      client.on('appel:termine', ({ appelId, dureeSecondes }) => {
+        expect(appelId).toBe(77);
+        expect(dureeSecondes).toBe(42);
+        fermer(agent, client);
+        done();
+      });
+      agent.emit('appel:terminer', { appelId: 77, dureeSecondes: 42, autrePartieId: 2, ticketId: 10 });
+    }).catch(done);
+  });
+
+  test('appel:reaction — relayée à l\'autre participant', (done) => {
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+
+    Promise.all([attendreEvenement(agent, 'connect'), attendreEvenement(client, 'connect')]).then(() => {
+      client.on('appel:reaction', ({ emoji, de }) => {
+        expect(emoji).toBe('🎉');
+        expect(de.id).toBe(3);
+        fermer(agent, client);
+        done();
+      });
+      agent.emit('appel:reaction', { appelId: 77, emoji: '🎉', autrePartieId: 2 });
+    }).catch(done);
+  });
+
+  test('appel:controle — indicateurs micro/caméra relayés dans la room ticket', (done) => {
+    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
+    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+
+    Promise.all([attendreEvenement(agent, 'connect'), attendreEvenement(client, 'connect')]).then(() => {
+      // ⚠️ CORRIGÉ : pour un rôle "client", verifierAccesTicket() fait DEUX
+      // requêtes (le ticket, PUIS la résolution utilisateur_id → clients.id),
+      // pas une seule comme pour un agent. Il manquait le mock de la 2ᵉ
+      // requête — sans lui, la résolution du client_id échouait silencieusement
+      // (autorise=false), le client ne rejoignait donc jamais la room, et
+      // appel:controle ne pouvait jamais l'atteindre (timeout).
+      db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] }); // ticket
+      db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // résolution client_id (doit correspondre à client_id: 5 du ticket)
+      db.query.mockResolvedValueOnce({ rows: [] }); // marquage lu (aucun message)
+      client.emit('ticket:rejoindre', { ticketId: 10 });
+
+      setTimeout(() => {
+        client.on('appel:controle', ({ de, micro, partageEcran }) => {
+          expect(de).toBe(3);
+          expect(micro).toBe(false);
+          expect(partageEcran).toBe(true);
+          fermer(agent, client);
+          done();
+        });
+        agent.emit('appel:controle', { ticketId: 10, micro: false, video: true, partageEcran: true });
+      }, 200);
+    }).catch(done);
+  });
+  
+});

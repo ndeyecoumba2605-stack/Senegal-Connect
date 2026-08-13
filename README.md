@@ -8,8 +8,8 @@ Projet Fin de Module — Technologie Client-Serveur, L3 DSTI, Polytech Diamniadi
 
 ## 🚀 Prérequis
 
-- **Node.js** v20 ou supérieur
-- **npm** v9 ou supérieur
+- **Node.js** v24.15.0
+- **npm** v11.12.1
 - **Docker** & **Docker Compose** (pour le lancement conteneurisé)
 - **PostgreSQL** 18 (uniquement si exécuté hors Docker)
 

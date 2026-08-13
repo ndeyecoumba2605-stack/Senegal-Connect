@@ -920,11 +920,27 @@ function initialiserFormulaireMessage() {
       if (selecteurEmoji) selecteurEmoji.classList.add('cache');
     });
 
+    let derniereEmissionFrappe = 0;
+
     if (inputMessage) {
       inputMessage.addEventListener('input', () => {
         if (!ticketActifId || !socket) return;
+
+        const maintenant = Date.now();
+
+        // Throttle : maximum 1 événement par seconde
+        if (maintenant - derniereEmissionFrappe < 1000) {
+          return;
+        }
+
+        derniereEmissionFrappe = maintenant;
+
         const userActuel = utilisateur();
-        socket.emit('frappe', { ticketId: ticketActifId, nom: userActuel?.prenom || userActuel?.nom || 'Abonné' });
+
+        socket.emit('frappe', {
+          ticketId: ticketActifId,
+          nom: userActuel?.prenom || userActuel?.nom || 'Abonné'
+        });
       });
     }
   }

@@ -80,8 +80,20 @@ module.exports = function initSupport(io) {
           [clientId, sujet.trim()]
         );
         const ticket = resultat.rows[0];
+
         socket.join(`ticket:${ticket.id}`);
+
+        // Notification temps réel à tous les agents
         io.to('agents').emit('ticket:nouveau', ticket);
+
+        // Notification personnalisée
+        io.to('agents').emit('notification:push', {
+          type: 'nouveau_ticket',
+          titre: 'Nouveau ticket',
+          message: `Un nouveau ticket a été ouvert : ${ticket.sujet}`,
+          ticketId: ticket.id,
+          date: new Date().toISOString()
+        });
       } catch (err) {
         socket.emit('erreur', { message: 'Impossible de créer le ticket' });
       }
@@ -122,10 +134,31 @@ module.exports = function initSupport(io) {
           [ticket.client_id]
         );
         if (clientRes.rows.length > 0) {
-          io.to(`user:${clientRes.rows[0].utilisateur_id}`).emit('ticket:pris_en_charge', ticket);
+          const utilisateurClientId = clientRes.rows[0].utilisateur_id;
+
+          // Mise à jour de l'interface du client
+          io.to(`user:${utilisateurClientId}`).emit(
+            'ticket:pris_en_charge',
+            ticket
+          );
+
+          // Notification personnalisée
+          io.to(`user:${utilisateurClientId}`).emit(
+            'notification:push',
+            {
+              type: 'ticket_pris_en_charge',
+              titre: 'Ticket pris en charge',
+              message: `Votre ticket "${ticket.sujet}" a été pris en charge par un agent.`,
+              ticketId: ticket.id,
+              date: new Date().toISOString()
+            }
+          );
         }
 
-        io.to('agents').emit('ticket:pris', { id: ticket.id, agent_id: ticket.agent_id });
+        io.to('agents').emit('ticket:pris', {
+          id: ticket.id,
+          agent_id: ticket.agent_id
+        });
       } catch (err) {
         logger.error(`Erreur assignment ticket ${ticketId}: ${err.message}`);
         socket.emit('erreur', { message: 'Impossible de prendre en charge ce ticket' });
@@ -219,12 +252,49 @@ module.exports = function initSupport(io) {
         }
 
         const contenuPropre = escapeHtml(contenu.trim());
+
         const resultat = await db.query(
           `INSERT INTO messages (ticket_id, expediteur_id, type, contenu)
-           VALUES ($1,$2,'texte',$3) RETURNING *`,
+          VALUES ($1,$2,'texte',$3)
+          RETURNING *`,
           [ticketId, user.id, contenuPropre]
         );
-        io.to(`ticket:${ticketId}`).emit('message:nouveau', resultat.rows[0]);
+
+        const message = resultat.rows[0];
+
+        // Diffusion normale du message dans le ticket
+        io.to(`ticket:${ticketId}`).emit(
+          'message:nouveau',
+          message
+        );
+
+        // Récupérer l'utilisateur propriétaire du ticket
+        const clientRes = await db.query(
+          `SELECT c.utilisateur_id
+          FROM tickets t
+          JOIN clients c ON c.id = t.client_id
+          WHERE t.id = $1`,
+          [ticketId]
+        );
+
+        if (clientRes.rows.length > 0) {
+          const clientUtilisateurId = clientRes.rows[0].utilisateur_id;
+
+          // Ne pas notifier l'expéditeur lui-même
+          if (String(clientUtilisateurId) !== String(user.id)) {
+            io.to(`user:${clientUtilisateurId}`).emit(
+              'notification:push',
+              {
+                type: 'ticket_repondu',
+                titre: 'Réponse à votre ticket',
+                message: 'Un agent a répondu à votre ticket.',
+                ticketId,
+                messageId: message.id,
+                date: new Date().toISOString()
+              }
+            );
+          }
+        }
       } catch (err) {
         logger.error(`Erreur message ticket ${ticketId}: ${err.message}`);
         socket.emit('erreur', { message: "Échec de l'envoi du message" });

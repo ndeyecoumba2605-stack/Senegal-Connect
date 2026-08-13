@@ -69,6 +69,7 @@ npm run test:cov  # avec rapport de couverture
 |---|---|---|---|---|
 | Auth | POST | `/api/auth/inscription-client` | Inscription publique d'un client | Public |
 | Auth | POST | `/api/auth/register` | Création d'un compte agent/admin | Admin |
+| Auth | POST | `/api/auth/register-interne` | Création d'un Compte client/admin | Admin |
 | Auth | POST | `/api/auth/login` | Connexion, obtention du JWT | Public |
 | Auth | GET | `/api/auth/profil` | Profil de l'utilisateur connecté | Authentifié |
 | Clients | GET | `/api/clients` | Liste paginée des clients | Authentifié |

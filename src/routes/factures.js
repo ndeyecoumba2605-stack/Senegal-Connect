@@ -7,6 +7,34 @@ const facturesController = require('../controllers/facturesController');
 const router = express.Router();
 
 /**
+ * Envoie une notification "notification:push" en temps réel à UN client,
+ * identifié par clients.id (pas utilisateurs.id).
+ *
+ * IMPORTANT : la room Socket.IO "user:{id}" est indexée sur utilisateurs.id
+ * (voir socket/support.js), alors que clientId ici est un clients.id (c'est
+ * ce que factures.client_id référence). Il faut donc résoudre l'un vers
+ * l'autre avant d'émettre — sinon la notification part vers une room que
+ * personne n'a jamais rejointe et n'arrive jamais à destination, sans
+ * qu'aucune erreur ne le signale.
+ *
+ * Ne fait jamais planter l'appelant : toute erreur est avalée silencieusement
+ * (une notification manquée n'est pas une raison de faire échouer la requête
+ * qui vient de créer/générer la facture avec succès).
+ */
+async function notifierClient(io, clientId, payload) {
+  if (!io || !clientId) return;
+  try {
+    const resultat = await query('SELECT utilisateur_id FROM clients WHERE id = $1', [clientId]);
+    const utilisateurId = resultat.rows[0]?.utilisateur_id;
+    if (utilisateurId) {
+      io.to(`user:${utilisateurId}`).emit('notification:push', payload);
+    }
+  } catch (err) {
+    // Notification best-effort : on n'interrompt jamais la requête pour ça.
+  }
+}
+
+/**
  * @openapi
  * /api/factures:
  *   get:
@@ -141,6 +169,17 @@ router.post('/',
     }
     try {
       const facture = await facturesController.creer(req.body);
+
+      const io = req.app.get('io');
+      if (io) {
+        notifierClient(io, facture.client_id, {
+          type: 'facture_emise',
+          titre: 'Nouvelle facture',
+          message: `Votre facture ${facture.reference} de ${facture.montant_fcfa} FCFA a été émise.`,
+          facture_id: facture.id,
+        });
+      }
+
       res.status(201).json(facture);
     } catch (err) { next(err); }
   }
@@ -265,6 +304,19 @@ router.put('/:id/statut',
 router.post('/generer-mensuelles', verifierJWT, garderRole('admin'), async (req, res, next) => {
   try {
     const factures = await facturesController.genererFacturesMensuelles(req.body?.periode);
+
+    const io = req.app.get('io');
+    if (io && factures.length) {
+      factures.forEach((facture) => {
+        notifierClient(io, facture.client_id, {
+          type: 'facture_emise',
+          titre: 'Nouvelle facture',
+          message: `Votre facture ${facture.reference} de ${facture.montant_fcfa} FCFA a été émise.`,
+          facture_id: facture.id,
+        });
+      });
+    }
+
     res.status(201).json({ genere: factures.length, factures });
   } catch (err) { next(err); }
 });

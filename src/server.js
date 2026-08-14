@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const cors = require('cors');
 const morgan = require('morgan');
 const { Server } = require('socket.io');
@@ -73,7 +74,10 @@ app.use((req, res, next) => {
 
 app.use(morgan('combined', { stream: logger.stream }));
 app.use(express.static('public'));
-app.use('/uploads', express.static('uploads'));
+// ⚠️ Chemin absolu identique à celui de src/middleware/upload.js — sinon un
+// fichier peut être enregistré au bon endroit mais introuvable via son URL
+// si le serveur est démarré depuis un dossier différent du projet.
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes API & Swagger
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

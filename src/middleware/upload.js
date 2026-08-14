@@ -1,11 +1,16 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const { randomUUID: uuidv4 } = require('crypto');
 
 const TYPES_AUTORISES = ['image/jpeg', 'image/png', 'application/pdf', 'audio/mpeg', 'audio/wav', 'audio/ogg'];
 
+
+const DOSSIER_UPLOADS = path.join(__dirname, '../../uploads');
+fs.mkdirSync(DOSSIER_UPLOADS, { recursive: true });
+
 const stockage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
+  destination: (req, file, cb) => cb(null, DOSSIER_UPLOADS),
   filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`),
 });
 

@@ -166,6 +166,9 @@ function connecterSocket() {
   socket.on('appel:termine', () => window.gererAppelTermine && window.gererAppelTermine());
   socket.on('appel:reaction', (donnees) => window.gererAppelReaction && window.gererAppelReaction(donnees));
   socket.on('appel:controle', (donnees) => window.gererControleDistant && window.gererControleDistant(donnees));
+
+  // Notifications push (nouvelle facture, facture en retard, ticket répondu)
+  socket.on('notification:push', (notification) => afficherNotification(notification));
 }
 
 // =========================================================================
@@ -796,6 +799,50 @@ function afficherIndicateurFrappe(nom) {
 function masquerIndicateurFrappe() {
   const zone = document.getElementById('indicateur-frappe');
   if (zone) zone.classList.add('cache');
+}
+
+// Icône selon le type de notification (facture émise/en retard, ticket répondu/pris en charge/nouveau)
+const ICONES_NOTIFICATION = {
+  facture_emise: 'fa-file-invoice',
+  facture_en_retard: 'fa-triangle-exclamation',
+  ticket_repondu: 'fa-reply',
+  ticket_pris_en_charge: 'fa-user-check',
+  nouveau_ticket: 'fa-headset',
+};
+
+function afficherNotification(notification) {
+  const conteneur = document.getElementById('conteneur-notifications');
+  if (!conteneur || !notification) return;
+
+  const icone = ICONES_NOTIFICATION[notification.type] || 'fa-bell';
+
+  const toast = document.createElement('div');
+  toast.className = `toast-notification ${notification.type || ''}`;
+  toast.innerHTML = `
+    <i class="fa-solid ${icone} toast-icone"></i>
+    <div class="toast-texte">
+      <div class="toast-titre">${notification.titre || 'Notification'}</div>
+      <div>${notification.message || ''}</div>
+    </div>
+    <button class="toast-fermer" aria-label="Fermer">&times;</button>
+  `;
+
+  function retirerToast() {
+    toast.classList.add('toast-sortie');
+    setTimeout(() => toast.remove(), 200);
+  }
+
+  toast.querySelector('.toast-fermer').addEventListener('click', retirerToast);
+  conteneur.appendChild(toast);
+
+  // Disparition automatique après 6 secondes
+  setTimeout(retirerToast, 6000);
+
+  // Si la notification concerne un ticket et qu'on est déjà sur la page,
+  // on rafraîchit la liste pour refléter l'état à jour sans recharger.
+  if (notification.ticketId && typeof chargerTickets === 'function') {
+    chargerTickets();
+  }
 }
 
 function mettreAJourReactions(messageId, reactions) {

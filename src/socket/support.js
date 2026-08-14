@@ -260,7 +260,27 @@ module.exports = function initSupport(io) {
           [ticketId, user.id, contenuPropre]
         );
 
-        const message = resultat.rows[0];
+       const messageBase = resultat.rows[0];
+
+      const expediteurRes = await db.query(
+        `SELECT
+            id,
+            nom,
+            prenom,
+            role
+        FROM utilisateurs
+        WHERE id = $1`,
+        [user.id]
+      );
+
+      const expediteur = expediteurRes.rows[0];
+
+      const message = {
+        ...messageBase,
+        expediteur_nom: expediteur?.nom || '',
+        expediteur_prenom: expediteur?.prenom || '',
+        expediteur_role: expediteur?.role || ''
+      };
 
         // Diffusion normale du message dans le ticket
         io.to(`ticket:${ticketId}`).emit(

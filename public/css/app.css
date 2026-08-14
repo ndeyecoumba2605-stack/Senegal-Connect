@@ -993,3 +993,46 @@ body {
   from { opacity: 1; transform: translateX(0); }
   to { opacity: 0; transform: translateX(20px); }
 }
+/* =========================================
+   IDENTIFICATION DES EXPÉDITEURS
+   Vue administrateur
+   ========================================= */
+
+.message-expediteur {
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.message-expediteur.agent {
+  color: #2563eb;
+}
+
+.message-expediteur.client {
+  color: #16a34a;
+}
+
+.message-expediteur.admin {
+  color: #7c3aed;
+}
+
+/* Les messages d'un agent dans la vue admin */
+.bulle-message.envoye .message-expediteur.agent,
+.bulle-message.recu .message-expediteur.agent {
+  color: #2563eb;
+}
+
+/* Les messages d'un client dans la vue admin */
+.bulle-message.envoye .message-expediteur.client,
+.bulle-message.recu .message-expediteur.client {
+  color: #16a34a;
+}
+
+/* Badge résolu */
+.badge-statut.ferme {
+  background-color: #16a34a;
+  color: white;
+}

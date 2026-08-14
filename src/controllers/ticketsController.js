@@ -160,27 +160,45 @@ async function verifierAccesTicket(ticketId, user, options = {}) {
 }
 
 async function historiqueMessages(ticketId, avant, limite = 50) {
-  const conditions = ['ticket_id = $1'];
+  const conditions = ['m.ticket_id = $1'];
   const valeurs = [ticketId];
+
   if (avant) {
     valeurs.push(avant);
-    conditions.push(`envoye_le < $${valeurs.length}`);
+    conditions.push(`m.envoye_le < $${valeurs.length}`);
   }
+
   valeurs.push(limite);
 
-    const resultat = await db.query(
-      `SELECT m.*,
-              COALESCE((
-                SELECT json_agg(ms.utilisateur_id)
-                FROM messages_statut ms
-                WHERE ms.message_id = m.id AND ms.statut = 'lu'
-              ), '[]') AS lus_par
-       FROM messages m
-       WHERE ${conditions.join(' AND ')}
-       ORDER BY m.envoye_le DESC LIMIT $${valeurs.length}`,
-      valeurs
-    );
-    return resultat.rows.reverse();
+  const resultat = await db.query(
+    `SELECT
+        m.*,
+
+        u.nom AS expediteur_nom,
+        u.prenom AS expediteur_prenom,
+        u.role AS expediteur_role,
+
+        COALESCE((
+          SELECT json_agg(ms.utilisateur_id)
+          FROM messages_statut ms
+          WHERE ms.message_id = m.id
+            AND ms.statut = 'lu'
+        ), '[]') AS lus_par
+
+     FROM messages m
+
+     JOIN utilisateurs u
+       ON u.id = m.expediteur_id
+
+     WHERE ${conditions.join(' AND ')}
+
+     ORDER BY m.envoye_le DESC
+
+     LIMIT $${valeurs.length}`,
+    valeurs
+  );
+
+  return resultat.rows.reverse();
 }
 
 async function historiqueAppels(ticketId) {
@@ -191,14 +209,47 @@ async function historiqueAppels(ticketId) {
   return resultat.rows;
 }
 
-async function creerMessage({ ticketId, expediteurId, contenu }) {
+async function creerMessage({
+  ticketId,
+  expediteurId,
+  contenu
+}) {
   const resultat = await db.query(
-    `INSERT INTO messages (ticket_id, expediteur_id, type, contenu, envoye_le)
-     VALUES ($1, $2, 'texte', $3, NOW()) 
+    `INSERT INTO messages (
+        ticket_id,
+        expediteur_id,
+        type,
+        contenu,
+        envoye_le
+     )
+     VALUES ($1, $2, 'texte', $3, NOW())
      RETURNING *`,
-    [ticketId, expediteurId, contenu]
+    [
+      ticketId,
+      expediteurId,
+      contenu
+    ]
   );
-  return resultat.rows[0];
+
+  const message = resultat.rows[0];
+
+  const expediteur = await db.query(
+    `SELECT
+        id,
+        nom,
+        prenom,
+        role
+     FROM utilisateurs
+     WHERE id = $1`,
+    [expediteurId]
+  );
+
+  return {
+    ...message,
+    expediteur_nom: expediteur.rows[0]?.nom || '',
+    expediteur_prenom: expediteur.rows[0]?.prenom || '',
+    expediteur_role: expediteur.rows[0]?.role || ''
+  };
 }
 
 module.exports = {

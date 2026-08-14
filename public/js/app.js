@@ -231,14 +231,47 @@ async function chargerStatsParRole() {
         if (document.getElementById('statAdminTickets')) document.getElementById('statAdminTickets').textContent = data.tickets_ouverts || 0;
       }
     } else if (role === 'agent') {
-      const res = await fetch('/api/tickets', { headers: { Authorization: `Bearer ${token()}` } });
+      const res = await fetch('/api/stats', {
+        headers: {
+          Authorization: `Bearer ${token()}`
+        }
+      });
+
       if (res.ok) {
-        const { data } = await res.json();
-        const tickets = data || [];
-        if (document.getElementById('statAgentEnAttente')) document.getElementById('statAgentEnAttente').textContent = tickets.filter(t => t.statut === 'ouvert').length;
-        if (document.getElementById('statAgentMesTickets')) document.getElementById('statAgentMesTickets').textContent = tickets.filter(t => t.statut === 'en_cours').length;
-      }
-    } else if (role === 'client') {
+        const data = await res.json();
+
+        // Tickets en attente
+        if (document.getElementById('statAgentEnAttente')) {
+          document.getElementById('statAgentEnAttente').textContent =
+            Number(data.tickets_en_attente || 0);
+        }
+
+        // Tickets actuellement pris en charge par l'agent
+        if (document.getElementById('statAgentMesTickets')) {
+          document.getElementById('statAgentMesTickets').textContent =
+            Number(data.tickets_assignes || 0);
+        }
+
+        // Tickets fermés = tickets résolus
+        if (document.getElementById('statAgentResolus')) {
+          document.getElementById('statAgentResolus').textContent =
+            Number(data.tickets_resolus || 0);
+        }
+
+        // Total appels passés + reçus
+        if (document.getElementById('statAgentAppels')) {
+          document.getElementById('statAgentAppels').textContent =
+            Number(data.appels_total || 0);
+        }
+
+        // Si tu veux afficher les détails passés/reçus dans la carte
+        const appelsDetail = document.getElementById('statAgentAppelsDetail');
+
+        if (appelsDetail) {
+          appelsDetail.textContent =
+            `Passés : ${Number(data.appels_passes || 0)} | Reçus : ${Number(data.appels_recus || 0)}`;
+        }
+  } else if (role === 'client') {
       const clientId = user.client_id || user.id;
       const res = await fetch(`/api/clients/${clientId}`, { headers: { Authorization: `Bearer ${token()}` } });
       if (res.ok) {
@@ -248,6 +281,7 @@ async function chargerStatsParRole() {
         if (document.getElementById('statClientFacture')) document.getElementById('statClientFacture').textContent = profil.derniere_facture ? `${profil.derniere_facture} FCFA` : '0 FCFA';
       }
     }
+  }
   } catch (error) {
     console.warn('Erreur chargement statistiques :', error);
   }
@@ -705,6 +739,43 @@ function afficherMessage(message) {
   const idExpediteur = message.expediteur_id || message.sender_id;
   const idMoi = userActuel?.id;
   const estMoi = String(idExpediteur) === String(idMoi);
+  const roleExpediteur = String(
+    message.expediteur_role || ''
+  ).toLowerCase();
+
+  const nomExpediteur = [
+    message.expediteur_prenom,
+    message.expediteur_nom
+  ].filter(Boolean).join(' ').trim();
+
+  const estAdmin = userActuel?.role === 'admin';
+
+  let etiquetteExpediteur = '';
+
+  if (estAdmin) {
+    if (roleExpediteur === 'agent') {
+      etiquetteExpediteur = `
+        <div class="message-expediteur agent">
+          <i class="fa-solid fa-headset"></i>
+          Agent ${nomExpediteur || ''}
+        </div>
+      `;
+    } else if (roleExpediteur === 'client') {
+      etiquetteExpediteur = `
+        <div class="message-expediteur client">
+          <i class="fa-solid fa-user"></i>
+          Client ${nomExpediteur || ''}
+        </div>
+      `;
+    } else if (roleExpediteur === 'admin') {
+      etiquetteExpediteur = `
+        <div class="message-expediteur admin">
+          <i class="fa-solid fa-user-shield"></i>
+          Administrateur ${nomExpediteur || ''}
+        </div>
+      `;
+    }
+  }
 
   const div = document.createElement('div');
   // .fil-messages est un conteneur flex (flex-direction: column) : float
@@ -735,20 +806,43 @@ function afficherMessage(message) {
   }
   const dejaLuParDest = estMoi && Array.isArray(lusPar) && lusPar.some(id => String(id) !== String(userActuel?.id));
   div.innerHTML = `
+    ${etiquetteExpediteur}
+
     ${contenuHtml}
-    ${estMoi ? (dejaLuParDest ? `<span class="accuse read" data-lu="true" style="float: right; margin-left: 8px; margin-top: 4px;"><i class="fa-solid fa-check-double"></i></span>` : `<span class="accuse pending" data-lu="false" style="float: right; margin-left: 8px; margin-top: 4px;"><i class="fa-solid fa-check"></i></span>`) : ''}
+
+    ${estMoi
+      ? (
+        dejaLuParDest
+          ? `<span class="accuse read" data-lu="true">
+              <i class="fa-solid fa-check-double"></i>
+            </span>`
+          : `<span class="accuse pending" data-lu="false">
+              <i class="fa-solid fa-check"></i>
+            </span>`
+      )
+      : ''
+    }
+
     <div class="reaction-toolbar">
-      <button type="button" class="btn-reaction-message" title="Réagir à ce message">😊</button>
+      <button
+        type="button"
+        class="btn-reaction-message"
+        title="Réagir à ce message"
+      >
+        😊
+      </button>
+
       <div class="reaction-picker cache">
-        <button type="button" class="reaction-option" data-emoji="👍">👍</button>
-        <button type="button" class="reaction-option" data-emoji="😂">😂</button>
-        <button type="button" class="reaction-option" data-emoji="❤️">❤️</button>
-        <button type="button" class="reaction-option" data-emoji="🎉">🎉</button>
-        <button type="button" class="reaction-option" data-emoji="😮">😮</button>
-        <button type="button" class="reaction-option" data-emoji="😢">😢</button>
-        <button type="button" class="reaction-option" data-emoji="👏">👏</button>
+        <button class="reaction-option" data-emoji="👍">👍</button>
+        <button class="reaction-option" data-emoji="😂">😂</button>
+        <button class="reaction-option" data-emoji="❤️">❤️</button>
+        <button class="reaction-option" data-emoji="🎉">🎉</button>
+        <button class="reaction-option" data-emoji="😮">😮</button>
+        <button class="reaction-option" data-emoji="😢">😢</button>
+        <button class="reaction-option" data-emoji="👏">👏</button>
       </div>
     </div>
+
     <div class="reactions"></div>
   `;
 

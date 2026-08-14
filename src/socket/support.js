@@ -240,86 +240,106 @@ module.exports = function initSupport(io) {
       }
     });
 
-    socket.on('message:envoyer', async ({ ticketId, contenu, type = 'texte' } = {}) => {
-      try {
-        const acces = await verifierAccesSocket(socket, ticketId);
-        if (!acces) return;
-        if (statutTicketFerme(acces)) {
-          return socket.emit('erreur', { message: 'Ce ticket est fermé' });
-        }
-        if (type !== 'texte' || typeof contenu !== 'string' || !contenu.trim()) {
-          return socket.emit('erreur', { message: 'Message texte invalide' });
-        }
+    socket.on(
+      'message:envoyer',
+      async ({ ticketId, contenu, type = 'texte' } = {}) => {
+        try {
+          const acces = await verifierAccesSocket(socket, ticketId);
 
-        const contenuPropre = escapeHtml(contenu.trim());
+          if (!acces) return;
 
-        const resultat = await db.query(
-          `INSERT INTO messages (ticket_id, expediteur_id, type, contenu)
-          VALUES ($1,$2,'texte',$3)
-          RETURNING *`,
-          [ticketId, user.id, contenuPropre]
-        );
-
-       const messageBase = resultat.rows[0];
-
-      const expediteurRes = await db.query(
-        `SELECT
-            id,
-            nom,
-            prenom,
-            role
-        FROM utilisateurs
-        WHERE id = $1`,
-        [user.id]
-      );
-
-      const expediteur = expediteurRes.rows[0];
-
-      const message = {
-        ...messageBase,
-        expediteur_nom: expediteur?.nom || '',
-        expediteur_prenom: expediteur?.prenom || '',
-        expediteur_role: expediteur?.role || ''
-      };
-
-        // Diffusion normale du message dans le ticket
-        io.to(`ticket:${ticketId}`).emit(
-          'message:nouveau',
-          message
-        );
-
-        // Récupérer l'utilisateur propriétaire du ticket
-        const clientRes = await db.query(
-          `SELECT c.utilisateur_id
-          FROM tickets t
-          JOIN clients c ON c.id = t.client_id
-          WHERE t.id = $1`,
-          [ticketId]
-        );
-
-        if (clientRes.rows.length > 0) {
-          const clientUtilisateurId = clientRes.rows[0].utilisateur_id;
-
-          // Ne pas notifier l'expéditeur lui-même
-          if (String(clientUtilisateurId) !== String(user.id)) {
-            io.to(`user:${clientUtilisateurId}`).emit(
-              'notification:push',
-              {
-                type: 'ticket_repondu',
-                titre: 'Réponse à votre ticket',
-                message: 'Un agent a répondu à votre ticket.',
-                ticketId,
-                messageId: message.id,
-                date: new Date().toISOString()
-              }
-            );
+          if (statutTicketFerme(acces)) {
+            return socket.emit('erreur', {
+              message: 'Ce ticket est fermé'
+            });
           }
+
+          if (
+            type !== 'texte' ||
+            typeof contenu !== 'string' ||
+            !contenu.trim()
+          ) {
+            return socket.emit('erreur', {
+              message: 'Message texte invalide'
+            });
+          }
+
+          const contenuPropre = escapeHtml(contenu.trim());
+
+          const resultat = await db.query(
+            `INSERT INTO messages (
+              ticket_id,
+              expediteur_id,
+              type,
+              contenu
+            )
+            VALUES ($1, $2, 'texte', $3)
+            RETURNING *`,
+            [
+              ticketId,
+              user.id,
+              contenuPropre
+            ]
+          );
+
+          const message = {
+            ...resultat.rows[0],
+
+            // Informations déjà disponibles dans socket.data.user
+            expediteur_id: user.id,
+            expediteur_role: user.role,
+            expediteur_nom: user.nom || null,
+            expediteur_prenom: user.prenom || null
+          };
+
+          // Diffusion du message
+          io.to(`ticket:${ticketId}`).emit(
+            'message:nouveau',
+            message
+          );
+
+          // Notification du client
+          const clientRes = await db.query(
+            `SELECT c.utilisateur_id
+            FROM tickets t
+            JOIN clients c ON c.id = t.client_id
+            WHERE t.id = $1`,
+            [ticketId]
+          );
+
+          if (clientRes.rows.length > 0) {
+            const clientUtilisateurId =
+              clientRes.rows[0].utilisateur_id;
+
+            if (
+              String(clientUtilisateurId) !==
+              String(user.id)
+            ) {
+              io.to(`user:${clientUtilisateurId}`).emit(
+                'notification:push',
+                {
+                  type: 'ticket_repondu',
+                  titre: 'Réponse à votre ticket',
+                  message: 'Un agent a répondu à votre ticket.',
+                  ticketId,
+                  messageId: message.id,
+                  date: new Date().toISOString()
+                }
+              );
+            }
+          }
+
+        } catch (err) {
+          logger.error(
+            `Erreur message ticket ${ticketId}: ${err.message}`
+          );
+
+          socket.emit('erreur', {
+            message: "Échec de l'envoi du message"
+          });
         }
-      } catch (err) {
-        logger.error(`Erreur message ticket ${ticketId}: ${err.message}`);
-        socket.emit('erreur', { message: "Échec de l'envoi du message" });
       }
-    });
+    );
 
     socket.on('message:lu', async ({ messageId, ticketId } = {}) => {
       try {

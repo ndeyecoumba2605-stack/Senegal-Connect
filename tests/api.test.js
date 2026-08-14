@@ -1169,29 +1169,99 @@ describe('Sockets — support.js et appels.js', () => {
   });
 
   test('message:envoyer — message diffusé dans la room du ticket', (done) => {
-    db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] }); // verifierAccesTicket (admin/agent)
-    db.query.mockResolvedValueOnce({ rows: [{ id: 99, ticket_id: 10, contenu: 'Bonjour', expediteur_id: 3 }] }); // INSERT messages
+    // ─────────────────────────────────────────────
+    // 1. Connexion / accès au ticket
+    // ─────────────────────────────────────────────
+    db.query.mockResolvedValueOnce({
+      rows: [{
+        id: 10,
+        agent_id: 3,
+        statut: 'en_cours',
+        client_id: 5
+      }]
+    });
 
-    const agent = connecter({ id: 3, role: 'agent', nom: 'Agent' });
-    const client = connecter({ id: 2, role: 'client', nom: 'Client' });
+    const agent = connecter({
+      id: 3,
+      role: 'agent',
+      nom: 'Agent'
+    });
 
-    Promise.all([attendreEvenement(agent, 'connect'), attendreEvenement(client, 'connect')]).then(() => {
-      agent.emit('ticket:rejoindre', { ticketId: 10 });
-      // Deuxième appel mocké pour le SELECT interne à ticket:rejoindre (marquage lu)
-      db.query.mockResolvedValueOnce({ rows: [] });
+    const client = connecter({
+      id: 2,
+      role: 'client',
+      nom: 'Client'
+    });
 
-      setTimeout(() => {
-        db.query.mockResolvedValueOnce({ rows: [{ id: 10, agent_id: 3, statut: 'en_cours', client_id: 5 }] });
-        db.query.mockResolvedValueOnce({ rows: [{ id: 100, ticket_id: 10, contenu: 'Bonjour', expediteur_id: 3 }] });
+    Promise.all([
+      attendreEvenement(agent, 'connect'),
+      attendreEvenement(client, 'connect')
+    ])
+      .then(() => {
 
-        agent.on('message:nouveau', (message) => {
-          expect(message.contenu).toBe('Bonjour');
-          fermer(agent, client);
-          done();
+        // ─────────────────────────────────────────
+        // 2. L'agent rejoint la room du ticket
+        // ─────────────────────────────────────────
+        db.query.mockResolvedValueOnce({
+          rows: []
         });
-        agent.emit('message:envoyer', { ticketId: 10, contenu: 'Bonjour' });
-      }, 200);
-    }).catch(done);
+
+        agent.emit('ticket:rejoindre', {
+          ticketId: 10
+        });
+
+        // ─────────────────────────────────────────
+        // 3. Attendre que l'agent soit dans la room
+        // ─────────────────────────────────────────
+        setTimeout(() => {
+
+          // Vérification d'accès au ticket
+          db.query.mockResolvedValueOnce({
+            rows: [{
+              id: 10,
+              agent_id: 3,
+              statut: 'en_cours',
+              client_id: 5
+            }]
+          });
+
+          // INSERT du message
+          db.query.mockResolvedValueOnce({
+            rows: [{
+              id: 99,
+              ticket_id: 10,
+              contenu: 'Bonjour',
+              expediteur_id: 3
+            }]
+          });
+
+          // ─────────────────────────────────────
+          // 4. Écouter le message diffusé
+          // ─────────────────────────────────────
+          agent.once('message:nouveau', (message) => {
+            try {
+              expect(message.contenu).toBe('Bonjour');
+
+              fermer(agent, client);
+
+              done();
+            } catch (err) {
+              done(err);
+            }
+          });
+
+          // ─────────────────────────────────────
+          // 5. Envoyer le message
+          // ─────────────────────────────────────
+          agent.emit('message:envoyer', {
+            ticketId: 10,
+            contenu: 'Bonjour'
+          });
+
+        }, 200);
+
+      })
+      .catch(done);
   });
 
   test('message:envoyer — contenu vide → erreur', (done) => {

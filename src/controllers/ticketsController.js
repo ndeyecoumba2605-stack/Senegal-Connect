@@ -209,46 +209,25 @@ async function historiqueAppels(ticketId) {
   return resultat.rows;
 }
 
-async function creerMessage({
-  ticketId,
-  expediteurId,
-  contenu
-}) {
+async function creerMessage({ ticketId, expediteurId, contenu, expediteurRole, expediteurNom, expediteurPrenom }) {
   const resultat = await db.query(
     `INSERT INTO messages (
-        ticket_id,
-        expediteur_id,
-        type,
-        contenu,
-        envoye_le
+       ticket_id,
+       expediteur_id,
+       type,
+       contenu,
+       envoye_le
      )
      VALUES ($1, $2, 'texte', $3, NOW())
      RETURNING *`,
-    [
-      ticketId,
-      expediteurId,
-      contenu
-    ]
-  );
-
-  const message = resultat.rows[0];
-
-  const expediteur = await db.query(
-    `SELECT
-        id,
-        nom,
-        prenom,
-        role
-     FROM utilisateurs
-     WHERE id = $1`,
-    [expediteurId]
+    [ticketId, expediteurId, contenu]
   );
 
   return {
-    ...message,
-    expediteur_nom: expediteur.rows[0]?.nom || '',
-    expediteur_prenom: expediteur.rows[0]?.prenom || '',
-    expediteur_role: expediteur.rows[0]?.role || ''
+    ...resultat.rows[0],
+    expediteur_role: expediteurRole || null,
+    expediteur_nom: expediteurNom || null,
+    expediteur_prenom: expediteurPrenom || null
   };
 }
 

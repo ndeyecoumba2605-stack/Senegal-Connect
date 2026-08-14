@@ -612,6 +612,9 @@ router.post('/:id/messages',
         ticketId: req.params.id,
         expediteurId: req.user.id,
         contenu: req.body.contenu,
+        expediteurRole: req.user.role,
+        expediteurNom: req.user.nom,
+        expediteurPrenom: req.user.prenom,
       });
 
       const io = req.app.get('io');
